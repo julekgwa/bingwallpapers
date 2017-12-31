@@ -1,0 +1,13 @@
+[Desktop Entry]
+GenericName=Bing wallpapers
+Name=Bingwallpapers
+Version=1.0
+Exec=/usr/bin/bingwallpapers
+Comment=Set bing wallpaper of the day as background image
+Icon=/usr/share/bingwallpapers/bingwallpapers.png
+Type=Application
+Terminal=false
+StartupNotify=false
+Encoding=UTF-8
+Categories=Utility;
+Name[en_ZA]=bingwallpapers.desktop

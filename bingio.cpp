@@ -268,6 +268,6 @@ QString BingIO::run_script() {
 }
 
 void BingIO::create_shell_script() {
-    launch("wget https://raw.githubusercontent.com/julekgwa/bingwallpaper/script-only/bing.sh -O" + _shell_script);
+    launch("curl https://raw.githubusercontent.com/julekgwa/bingwallpaper/script-only/bing.sh --output " + _shell_script);
     launch("chmod +x " + _shell_script);
 }
