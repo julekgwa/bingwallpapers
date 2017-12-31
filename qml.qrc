@@ -1,0 +1,14 @@
+<RCC>
+    <qresource prefix="/">
+        <file>main.qml</file>
+        <file>DefaultPage.ui.qml</file>
+        <file>PreferencesPage.ui.qml</file>
+        <file>main.qml</file>
+        <file>qtquickcontrols2.conf</file>
+        <file>BackgroundPage.qml</file>
+        <file>Sidebar.qml</file>
+        <file>CustomLabel.qml</file>
+        <file>About.qml</file>
+        <file>AboutForm.ui.qml</file>
+    </qresource>
+</RCC>
