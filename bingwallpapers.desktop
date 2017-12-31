@@ -1,0 +1,10 @@
+#!/usr/bin/env xdg-open
+[Desktop Entry]
+Version=1.0
+Name=bing
+GenericName=Bing Wallpaper
+Comment=Bing Wallpaper
+Exec="/path/bingwallpapers/script/bing.sh"
+Terminal=false
+Type=Application
+Name[en_US]=bingwallpapers
