@@ -15,13 +15,29 @@ ApplicationWindow {
 
     Timer {
         id: timer1
-        interval: 2000
+        interval: 300000
         repeat: true
         running: false
 
         onTriggered: {
             BingIO.run_script()
         }
+    }
+
+    // delay script by five seconds, on startup
+    Timer {
+        id: delayScript
+        interval: 5000
+        repeat: false
+        running: false
+
+        onTriggered: {
+            BingIO.run_script()
+        }
+    }
+
+    Component.onCompleted: {
+        delayScript.running = true
     }
 
     // system tray
@@ -34,6 +50,11 @@ ApplicationWindow {
             icon = iconTray             // Set icon
             toolTip = "Bingwallpapers"
             show();
+            if(application.visibility === Window.Hidden) {
+                application.show()
+            } else {
+                application.hide()
+            }
         }
 
         /* By clicking on the tray icon define the left or right mouse button click was.
@@ -286,7 +307,7 @@ ApplicationWindow {
         }
 
         onRejected: {
-           BingIO.set_rotate(0)
+            BingIO.set_rotate(0)
         }
 
         //focus: true    // Needed in 5.9+ or this code is NOT going to work!!
