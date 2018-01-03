@@ -27,7 +27,7 @@ ApplicationWindow {
     // delay script by five seconds, on startup
     Timer {
         id: delayScript
-        interval: 5000
+        interval: 10000
         repeat: false
         running: false
 

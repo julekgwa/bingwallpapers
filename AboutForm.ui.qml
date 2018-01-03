@@ -26,17 +26,17 @@ BackgroundPage {
 
     Text {
         id: text2
-        x: 51
+        x: 22
         y: 210
         color: "#ffffff"
-        text: qsTr("Set bing wallpaper as desktop background")
+        text: qsTr("Set bing wallpaper of the day as desktop wallpaper")
         font.pixelSize: 16
     }
 
     CustomLabel {
         id: license
-        x: 38
-        y: 266
+        x: 37
+        y: 315
         color: "#ffffff"
         text: qsTr("<a href='https://www.gnu.org/licenses/old-licenses/gpl-2.0.html'>GNU General Public License, version 2 or later</a>")
         font.pixelSize: 16
@@ -53,19 +53,19 @@ BackgroundPage {
 
     Text {
         id: text3
-        x: 178
-        y: 251
+        x: 119
+        y: 293
         color: "#ffffff"
-        text: qsTr("License:")
+        text: qsTr("Visit the link below for details.")
         font.pixelSize: 12
     }
 
     CustomLabel {
         id: webpage
-        x: 170
-        y: 310
+        x: 114
+        y: 366
         color: "#ffffff"
-        text: qsTr("<a href='bingwallpapers.lekgoara.com'>Website</a>")
+        text: qsTr("<a href='bingwallpapers.lekgoara.com'>Bingwallpapers website</a>")
         font.pixelSize: 16
         // @disable-check M222
         onLinkActivated: Qt.openUrlExternally(
@@ -79,8 +79,8 @@ BackgroundPage {
     }
 
     GridLayout {
-        x: 58
-        y: 398
+        x: 56
+        y: 417
         rows: 1
         columns: 2
 
@@ -95,7 +95,8 @@ BackgroundPage {
             id: email
             text: "<a href='mailto:phutigravel@gmail.com?Subject=Bing%20Wallpapers'>(phutigravel@gmail.com)</a>"
             // @disable-check M222
-            onLinkActivated: Qt.openUrlExternally("mailto:phutigravel@gmail.com?Subject=Bing%20Wallpapers")
+            onLinkActivated: Qt.openUrlExternally(
+                                 "mailto:phutigravel@gmail.com?Subject=Bing%20Wallpapers")
 
             MouseArea {
                 anchors.fill: parent
@@ -103,5 +104,18 @@ BackgroundPage {
                 cursorShape: parent.hoveredLink ? Qt.PointingHandCursor : Qt.ArrowCursor
             }
         }
+    }
+
+    Text {
+        id: warranty
+        x: 40
+        y: 270
+        width: 323
+        height: 24
+        color: "#ffffff"
+        text: qsTr("This program comes with ABSOLUTELY NO WARRANTY.")
+        verticalAlignment: Text.AlignVCenter
+        horizontalAlignment: Text.AlignHCenter
+        font.pixelSize: 12
     }
 }
