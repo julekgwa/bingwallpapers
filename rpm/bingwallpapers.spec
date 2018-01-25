@@ -1,5 +1,5 @@
 %define name bingwallpapers
-%define version 1.0.1
+%define version 1.0.2
 %define build_timestamp %{lua: print(os.date("%Y%m%d"))}
 
 Name:           %{name}
@@ -61,6 +61,9 @@ cp %{_builddir}/%{name}-master/bingwallpapers.desktop %{buildroot}/etc/xdg/autos
 
 
 %changelog
+* Fri Jan 26 2018 Junius LEKGWARA <phutigravel@gmail.com> - 1.0.2
+- added icons to system tray menu
+
 * Thu Jan 25 2018 Junius LEKGWARA <phutigravel@gmail.com> - 1.0.1
 - added window maximum width and height
 - removed yaml-cpp library files and added it as a build require

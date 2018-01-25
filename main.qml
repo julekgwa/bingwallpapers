@@ -83,8 +83,19 @@ ApplicationWindow {
         id: trayMenu
 
         Tray.MenuItem {
-            text: qsTr("Show BW")
+            text: qsTr("Show Bingwallpapers")
             onTriggered: application.show()
+            iconName: "Bing"
+            iconSource: "qrc:/resources/bing.png"
+        }
+        Tray.MenuSeparator {visible: true }
+        Tray.MenuItem {
+            text: qsTr("Refresh")
+            onTriggered: {
+                BingIO.run_script()
+            }
+            iconName: "Refresh"
+            iconSource: "qrc:/resources/refresh-hover.png"
         }
 
         Tray.MenuItem {
@@ -92,8 +103,9 @@ ApplicationWindow {
             onTriggered: {
                 systemTray.hide()
                 Qt.quit()
-
             }
+            iconName: "Quit"
+            iconSource: "qrc:/resources/quit.png"
         }
     }
 
