@@ -11,6 +11,10 @@ ApplicationWindow {
     id: application
     width: 400
     height: 500
+    maximumHeight: height
+    maximumWidth: width
+    minimumHeight: height
+    minimumWidth: width
     title: qsTr("Bing Wallpapers")
 
     Timer {
@@ -106,6 +110,11 @@ ApplicationWindow {
         }
 
         DefaultPage {
+            refresh.onClicked: {
+                BingIO.run_script()
+            }
+
+
             setLockScreen.onCheckedChanged: {
                 BingIO.set_lock_screen(setLockScreen.checked)
             }

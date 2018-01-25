@@ -6,6 +6,8 @@ BackgroundPage {
     width: 400
     height: 500
     color: "#191919"
+    property alias refreshImage: refreshImage
+    property alias refresh: refresh
     property alias setLockScreen: setLockScreen
     property alias setBackgroundImage: setBackgroundImage
     property alias deleteDaysComboBox: deleteDaysComboBox
@@ -140,7 +142,24 @@ BackgroundPage {
             visible: true
             source: "resources/us.png"
         }
+    }
 
+    Image {
+        id: refreshImage
+        x: 352
+        y: 8
+        width: 48
+        height: 48
+        z: 1
+        source: "resources/refresh.png"
 
+        MouseArea {
+            id: refresh
+            anchors.fill: parent
+            hoverEnabled: true
+            cursorShape: Qt.PointingHandCursor
+            onEntered: refreshImage.source = "resources/refresh-hover.png"
+            onExited: refreshImage.source = "resources/refresh.png"
+        }
     }
 }

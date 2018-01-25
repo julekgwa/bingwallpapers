@@ -9,5 +9,7 @@
         <file>resources/uk.png</file>
         <file>resources/us.png</file>
         <file>resources/bing.png</file>
+        <file>resources/refresh.png</file>
+        <file>resources/refresh-hover.png</file>
     </qresource>
 </RCC>

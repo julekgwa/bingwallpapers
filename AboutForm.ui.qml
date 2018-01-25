@@ -20,7 +20,7 @@ BackgroundPage {
         x: 158
         y: 183
         color: "#ffffff"
-        text: qsTr("Version: 1.0")
+        text: qsTr("Version: 1.0.1")
         font.pixelSize: 16
     }
 

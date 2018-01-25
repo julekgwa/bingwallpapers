@@ -1,5 +1,5 @@
 %define name bingwallpapers
-%define version 1.0
+%define version 1.0.1
 %define build_timestamp %{lua: print(os.date("%Y%m%d"))}
 
 Name:           %{name}
@@ -61,5 +61,10 @@ cp %{_builddir}/%{name}-master/bingwallpapers.desktop %{buildroot}/etc/xdg/autos
 
 
 %changelog
+* Thur Jan 25 2018 Junius LEKGWARA <phutigravel@gmail.com> - 1.0.1
+- added window maximum width and height
+- removed yaml-cpp library files and added it as a build require
+- added refresh button to the start screen
+
 * Fri Dec 29 2017 Junius LEKGWARA <phutigravel@gmail.com> - 1.0
 - First Bingwallpapers release
