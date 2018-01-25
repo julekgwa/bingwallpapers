@@ -15,18 +15,12 @@ sudo dnf install -y bingwallpapers
 
 #### Using RPM
 
-Download rpm file, [64bit](http://bingwallpapers.lekgoara.com/sources/bingwallpapers-x64.rpm) or for [i386 (32bit)](http://bingwallpapers.lekgoara.com/sources/bingwallpapers-i386.rpm)
-
-Run the following command
-
-```
-sudo dnf install -y qt5 wget curl qt-x11
-```
+Download rpm file, [bingwallpapers](http://bingwallpapers.lekgoara.com/sources/bingwallpapers.noarch.rpm")
 
 Install the application
 
 ```
-sudo rpm -ivh bingwallpapers-x64.rpm or sudo rpm -ivh bingwallpapers-i386.rpm
+$ sudo dnf install bingwallpapers.noarch.rpm
 ```
 
 ## Development
