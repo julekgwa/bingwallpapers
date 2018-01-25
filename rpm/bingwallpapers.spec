@@ -61,7 +61,7 @@ cp %{_builddir}/%{name}-master/bingwallpapers.desktop %{buildroot}/etc/xdg/autos
 
 
 %changelog
-* Thur Jan 25 2018 Junius LEKGWARA <phutigravel@gmail.com> - 1.0.1
+* Thu Jan 25 2018 Junius LEKGWARA <phutigravel@gmail.com> - 1.0.1
 - added window maximum width and height
 - removed yaml-cpp library files and added it as a build require
 - added refresh button to the start screen
