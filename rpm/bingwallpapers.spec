@@ -16,6 +16,7 @@ BuildRoot:      %{_tmppath}/%{name}-buildroot
 BuildRequires:  qt5
 BuildRequires:  qt5-devel
 BuildRequires:  gcc-c++
+BuildRequires:  yaml-cpp-devel
 Requires:       qt5
 Requires:       qt-x11
 Requires:       curl
