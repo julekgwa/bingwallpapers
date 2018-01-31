@@ -188,6 +188,25 @@ ApplicationWindow {
         PreferencesPage {
             id: preferencesPage
             property alias preferencesPage: preferencesPage
+            browseBtn.onClicked: {
+                fileDialog.open()
+            }
+            downloadFolderTextInput.onAccepted: {
+                if (BingIO.dir_exists(downloadFolderTextInput.text)) {
+                    if (!BingIO.dir_read_write(downloadFolderTextInput.text)) {
+                        permissionDenied.open()
+                    }else {
+                        BingIO.set_bing_wall_directory(downloadFolderTextInput.text)
+                    }
+                }else {
+                    folderExistsDialog.open()
+                }
+            }
+
+            downloadFolderTextInput.onTextChanged: {
+                downloadFolderTextInput.color = BingIO.dir_exists(downloadFolderTextInput.text) ? "white" : "red"
+            }
+
             fiveRadionBtn.onClicked: {
                 setTimer()            }
 
@@ -211,9 +230,6 @@ ApplicationWindow {
                 openPopup()
             }
 
-            downloadFolderComboBox.onCurrentTextChanged: {
-                BingIO.set_bing_wall_directory(downloadFolderComboBox.currentText)
-            }
             rotateImagesSwitch.onCheckedChanged: {
                 rotateGroupBox.enabled = !rotateGroupBox.enabled
                 if (rotateImagesSwitch.checked) {
@@ -235,8 +251,6 @@ ApplicationWindow {
                     setTimer()
                 }
             }
-
-            downloadFolderComboBox.model: BingIO.directories
 
             function setTimer(customTimer) {
                 customIntervalText.text = ""
@@ -382,6 +396,43 @@ ApplicationWindow {
         text: "Please enter time greater than 2 minutes."
         onAccepted: {
             openPopup()
+        }
+    }
+
+    MessageDialog {
+        id: folderExistsDialog
+        title: "Custom Path"
+        text: "Selected directory doesn't exists."
+        standardButtons: StandardButton.Close
+        icon: StandardIcon.Critical
+    }
+
+    MessageDialog {
+        id:permissionDenied
+        title: "Permission denied"
+        text: "Sorry, I don't have the read and write permissions for this directory."
+        standardButtons: StandardButton.Close
+        icon: StandardIcon.Critical
+    }
+
+    FileDialog {
+        id: fileDialog
+        title: "Please choose a directory"
+        folder: shortcuts.home
+        selectFolder: true
+        onAccepted: {
+            var path = fileDialog.fileUrl.toString();
+            // remove prefixed "file:///"
+            path= path.replace(/^(file:\/{2})|(qrc:\/{2})|(http:\/{2})/,"");
+            // unescape html codes like '%23' for '#'
+            var cleanPath = decodeURIComponent(path);
+            if (BingIO.dir_exists(cleanPath)) {
+                if (!BingIO.dir_read_write(cleanPath)) {
+                    permissionDenied.open()
+                }else {
+                    BingIO.set_bing_wall_directory(cleanPath)
+                }
+            }
         }
     }
 

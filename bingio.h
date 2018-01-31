@@ -23,7 +23,6 @@ class BingIO : public QObject
     Q_PROPERTY(bool get_lock_screen READ get_lock_screen WRITE set_lock_screen NOTIFY data_changed)
     Q_PROPERTY(QString get_bing_wall_directory READ get_bing_wall_directory WRITE set_bing_wall_directory NOTIFY data_changed)
     Q_PROPERTY(QString get_app_directory READ get_app_directory)
-    Q_PROPERTY(QList<QVariant> directories READ directories CONSTANT)
 
 public:
     explicit BingIO(QObject *parent = 0);
@@ -35,7 +34,6 @@ public:
     ulong get_days_to_delete_pic(void);
     bool get_background_image();
     bool get_lock_screen();
-    QList<QVariant> directories() const { return m_directories; }
 
 signals:
     void data_changed();
@@ -50,6 +48,8 @@ public slots:
     void set_days_to_delete_pic(ulong test);
     QString get_region_key(int region);
     QString run_script();
+    bool dir_exists(QString dir);
+    bool dir_read_write(QString dir);
     int set_combo_box_region(void);
 
 private:
@@ -60,7 +60,6 @@ private:
     QString _shell_script;
     QString read_file(QString filename);
     void write_file(QString filename, QString text);
-    void get_directories(void);
     bool file_exists(QString filename);
     bool _set_background_image;
     bool _set_lock_screen;
@@ -70,7 +69,6 @@ private:
     void load_config();
     void create_shell_script();
     QString _config_data;
-    QList<QVariant> m_directories;
     QProcess *m_process;
 
 };

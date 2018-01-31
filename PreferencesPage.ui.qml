@@ -1,10 +1,13 @@
 import QtQuick 2.7
 import QtQuick.Controls 2.0
 import QtQuick.Controls 1.4 as Exclusive
+import QtQuick.Layouts 1.3
 
 BackgroundPage {
     width: 400
     height: 500
+    property alias browseBtn: browseBtn
+    property alias downloadFolderTextInput: downloadFolderTextInput
     property alias fiveRadionBtn: fiveRadionBtn
     property alias tenRadioBtn: tenRadionBtn
     property alias fifteenRadionBtn: fifteenRadionBtn
@@ -13,7 +16,6 @@ BackgroundPage {
     property alias customRadionBtn: customRadionBtn
     property alias rotateImagesSwitch: rotateImagesSwitch
     property alias rotateGroupBox: rotateGroupBox
-    property alias downloadFolderComboBox: downloadFolderComboBox
     property alias customIntervalText: customIntervalText
     property alias rotateButtonGroup: rotateButtonGroup
     title: "Customize BW"
@@ -98,14 +100,6 @@ BackgroundPage {
         font.pixelSize: 16
     }
 
-    ComboBox {
-        id: downloadFolderComboBox
-        x: 27
-        y: 382
-        width: 348
-        height: 48
-    }
-
     CustomLabel {
         id: customIntervalText
         x: 214
@@ -119,4 +113,35 @@ BackgroundPage {
         horizontalAlignment: Text.AlignLeft
         font.pixelSize: 13
     }
+
+    GridLayout {
+        id: downloadFolderLayout
+        x: 26
+        y: 372
+        width: 349
+        height: 44
+
+        TextInput {
+            id: downloadFolderTextInput
+            width: 80
+            height: 20
+            color: "#ffffff"
+            text: qsTr(BingIO.get_bing_wall_directory)
+            font.pixelSize: 16
+            Layout.fillWidth: true
+            autoScroll: true
+            layer.enabled: true
+        }
+
+        Button {
+            id: browseBtn
+            width: 60
+            height: 37
+            text: qsTr("Browse...")
+            font.capitalization: Font.Capitalize
+        }
+
+
+    }
+
 }

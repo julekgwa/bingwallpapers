@@ -37,15 +37,12 @@ BingIO::BingIO(QObject *parent) : QObject(parent),
             create_shell_script();
         }
     }
-    m_directories.append(_bing_wall_directory);
 
     // create wallpaper directory
     QDir wallpaper_dir(wallpaper_path);
     if (!wallpaper_dir.exists()) {
         wallpaper_dir.mkpath(wallpaper_path);
     }
-
-    get_directories();
 }
 
 QString BingIO::get_region() {
@@ -54,15 +51,6 @@ QString BingIO::get_region() {
 
 QString BingIO::get_app_directory() {
     return this->_app_directory;
-}
-
-void BingIO::get_directories() {
-    QDir home(QDir::homePath());
-    foreach(QFileInfo file, home.entryInfoList()) {
-        if (file.isDir() && file.absoluteFilePath().length() > 3 && file.absoluteFilePath() != "/home" && !m_directories.contains(file.absoluteFilePath())) {
-            m_directories.append(file.absoluteFilePath());
-        }
-    }
 }
 
 
@@ -75,6 +63,20 @@ void BingIO::set_region(QString rgn) {
 
 bool BingIO::file_exists(QString filename) {
     return QFileInfo::exists(filename);
+}
+
+bool BingIO::dir_exists(QString dir) {
+    return QDir(dir).exists();
+}
+
+bool BingIO::dir_read_write(QString dir) {
+    QFileInfo my_dir(dir);
+
+    if (!my_dir.isDir())
+        return false;
+    if (my_dir.isWritable() && my_dir.isReadable())
+        return true;
+    return false;
 }
 
 QString BingIO::get_bing_wall_directory() {
