@@ -61,6 +61,9 @@ cp %{_builddir}/%{name}-master/bingwallpapers.desktop %{buildroot}/etc/xdg/autos
 
 
 %changelog
+* Wed Jan 31 2018 Junius LEKGWARA <phutigravel@gmail.com> - 1.0.3
+- added custom download paths, user can select download directory of their choice
+
 * Fri Jan 26 2018 Junius LEKGWARA <phutigravel@gmail.com> - 1.0.2
 - added icons to system tray menu
 
