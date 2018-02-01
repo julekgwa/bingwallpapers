@@ -15,7 +15,7 @@ sudo dnf install -y bingwallpapers
 
 #### Using RPM
 
-Download rpm file, [bingwallpapers](http://bingwallpapers.lekgoara.com/sources/bingwallpapers.noarch.rpm")
+Download rpm file, [bingwallpapers](http://bingwallpapers.lekgoara.com/sources/bingwallpapers.noarch.rpm)
 
 Install the application
 
