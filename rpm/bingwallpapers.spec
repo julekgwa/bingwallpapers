@@ -63,6 +63,7 @@ cp %{_builddir}/%{name}-master/bingwallpapers.desktop %{buildroot}/etc/xdg/autos
 %changelog
 * Mon Mar 12 2018 Junius LEKGWARA <phutigravel@gmail.com> - 1.0.4
 - Enabled HighDpi Scaling
+- Added auto daily refresh
 
 * Wed Jan 31 2018 Junius LEKGWARA <phutigravel@gmail.com> - 1.0.3
 - added custom download paths, user can select download directory of their choice

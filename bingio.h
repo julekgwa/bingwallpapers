@@ -12,6 +12,7 @@
 #include <QVariant>
 #include <yaml-cpp/yaml.h>
 #include <QProcess>
+#include <QtCore/QDateTime>
 
 class BingIO : public QObject
 {
@@ -23,6 +24,8 @@ class BingIO : public QObject
     Q_PROPERTY(bool get_lock_screen READ get_lock_screen WRITE set_lock_screen NOTIFY data_changed)
     Q_PROPERTY(QString get_bing_wall_directory READ get_bing_wall_directory WRITE set_bing_wall_directory NOTIFY data_changed)
     Q_PROPERTY(QString get_app_directory READ get_app_directory)
+    Q_PROPERTY(qint64 get_refresh_milliseconds READ get_refresh_milliseconds)
+    Q_PROPERTY(QString get_next_refresh READ get_next_refresh NOTIFY refresh_date_changed)
 
 public:
     explicit BingIO(QObject *parent = 0);
@@ -34,9 +37,12 @@ public:
     ulong get_days_to_delete_pic(void);
     bool get_background_image();
     bool get_lock_screen();
+    qint64 get_refresh_milliseconds();
+    QString get_next_refresh();
 
 signals:
     void data_changed();
+    void refresh_date_changed();
 
 public slots:
     void set_region(QString rgn);
@@ -46,6 +52,7 @@ public slots:
     void set_lock_screen(bool image);
     void save_data();
     void set_days_to_delete_pic(ulong test);
+    void update_next_refresh_date();
     QString get_region_key(int region);
     QString run_script();
     bool dir_exists(QString dir);
@@ -58,6 +65,7 @@ private:
     QString _region;
     QString _bing_wall_directory;
     QString _shell_script;
+    QString _next_refresh;
     QString read_file(QString filename);
     void write_file(QString filename, QString text);
     bool file_exists(QString filename);
@@ -68,8 +76,11 @@ private:
     void create_yaml_map();
     void load_config();
     void create_shell_script();
+    qint64 create_refresh_milliseconds(int time);
     QString _config_data;
     QProcess *m_process;
+    qint64 _refresh_milliseconds;
+    int _refresh_minutes;
 
 };
 

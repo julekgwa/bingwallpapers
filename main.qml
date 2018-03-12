@@ -40,8 +40,23 @@ ApplicationWindow {
         }
     }
 
+    // refresh script daily
+    Timer {
+        id: refreshDaily
+        interval: 0
+        repeat: false
+        running: false
+
+        onTriggered: {
+            BingIO.run_script()
+            BingIO.update_next_refresh_date()
+        }
+    }
+
     Component.onCompleted: {
         delayScript.running = true
+        refreshDaily.running = true
+        refreshDaily.interval = BingIO.get_refresh_milliseconds
     }
 
     // system tray
@@ -90,7 +105,14 @@ ApplicationWindow {
         }
         Tray.MenuSeparator {visible: true }
         Tray.MenuItem {
-            text: qsTr("Refresh")
+            id: refreshDate
+            text: qsTr("Next refresh: " + BingIO.get_next_refresh)
+            enabled: false
+            iconName: "Refresh"
+            iconSource: "qrc:/resources/refresh-hover.png"
+        }
+        Tray.MenuItem {
+            text: qsTr("Refresh Now")
             onTriggered: {
                 BingIO.run_script()
             }
@@ -118,6 +140,11 @@ ApplicationWindow {
             target: BingIO
             onData_changed: {
                 BingIO.save_data()
+            }
+            onRefresh_date_changed: {
+                refreshDate.text = "Next refresh: " + BingIO.get_next_refresh
+                refreshDaily.running = true
+                refreshDaily.interval = BingIO.get_refresh_milliseconds
             }
         }
 

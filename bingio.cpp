@@ -1,7 +1,7 @@
 #include "bingio.h"
 
 BingIO::BingIO(QObject *parent) : QObject(parent),
-    _region("en-US"), _set_background_image(true), _set_lock_screen(false) , _rotate(0), _delete_days(0), m_process(new QProcess(this))
+    _region("en-US"), _set_background_image(true), _set_lock_screen(false) , _rotate(0), _delete_days(0), m_process(new QProcess(this)), _refresh_milliseconds(create_refresh_milliseconds(8))
 {
     _app_directory = QStandardPaths::writableLocation(QStandardPaths::DataLocation);
     QString picture_directory = QStandardPaths::writableLocation(QStandardPaths::PicturesLocation);
@@ -51,6 +51,10 @@ QString BingIO::get_region() {
 
 QString BingIO::get_app_directory() {
     return this->_app_directory;
+}
+
+qint64 BingIO::get_refresh_milliseconds() {
+    return _refresh_milliseconds;
 }
 
 
@@ -210,6 +214,10 @@ ulong BingIO::get_days_to_delete_pic(){
     return _delete_days;
 }
 
+QString BingIO::get_next_refresh() {
+    return _next_refresh;
+}
+
 void BingIO::save_data() {
     // build yaml map
     create_yaml_map();
@@ -231,6 +239,8 @@ void BingIO::create_yaml_map() {
     config << YAML::Value << _set_lock_screen;
     config << YAML::Key << "SET_DELETE_DAYS";
     config << YAML::Value << _delete_days;
+    config << YAML::Key << "REFRESH_TIME";
+    config << YAML::Value << _refresh_minutes;
     config << YAML::EndMap;
 
     _config_data = QString::fromStdString(config.c_str());
@@ -251,7 +261,30 @@ void BingIO::load_config() {
             _set_lock_screen = config["SET_LOCKSCREEN"].as<std::string>() == "true" ? true : false;
         if (config["SET_DELETE_DAYS"])
             _delete_days = config["SET_DELETE_DAYS"].as<int>();
+        if (config["REFRESH_TIME"])
+            _refresh_milliseconds = create_refresh_milliseconds(config["REFRESH_TIME"].as<int>());
     }
+}
+
+qint64 BingIO::create_refresh_milliseconds(int time) {
+    QDateTime utc = QDateTime::currentDateTimeUtc();
+    QDateTime current_time = QDateTime::currentDateTimeUtc();
+
+    utc.setTime(QTime(time, 0, 0)); // set time to the prefered time
+
+    qint64 millisec = utc.time().msecsSinceStartOfDay() - current_time.time().msecsSinceStartOfDay();
+    if (millisec < 0) {
+        utc = utc.addDays(1);
+        millisec = current_time.time().msecsSinceStartOfDay() - utc.time().msecsSinceStartOfDay();
+    }
+    _refresh_minutes = time;
+    _next_refresh = utc.toString("hh:mm ap dd.MM.yyyy t");
+    emit refresh_date_changed();
+    return millisec;
+}
+
+void BingIO::update_next_refresh_date() {
+    _refresh_milliseconds = create_refresh_milliseconds(_refresh_minutes);
 }
 
 QString BingIO::launch(const QString &program)
