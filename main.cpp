@@ -14,9 +14,8 @@
 Q_DECLARE_METATYPE(QSystemTrayIcon::ActivationReason)
 Q_DECL_EXPORT int main(int argc, char *argv[])
 {
-#if defined(Q_OS_WIN)
-    QCoreApplication::setAttribute(Qt::AA_EnableHighDpiScaling);
-#endif
+
+     QGuiApplication::setAttribute(Qt::AA_EnableHighDpiScaling);
 
 
     QApplication app(argc, argv);

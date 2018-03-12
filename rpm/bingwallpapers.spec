@@ -1,5 +1,5 @@
 %define name bingwallpapers
-%define version 1.0.3
+%define version 1.0.4
 %define build_timestamp %{lua: print(os.date("%Y%m%d"))}
 
 Name:           %{name}
@@ -7,7 +7,7 @@ Version:        %{version}
 Release:        %{build_timestamp}
 Summary:        Set bing wallpaper as a desktop background image
 
-License:        GPLv3+ 
+License:        GPLv3+
 URL:            bingwallpapers.lekgoara.com
 Source0:        https://github.com/julekgwa/bingwallpapers/archive/master.tar.gz#/%{name}-%{version}-%{release}.tar.gz
 BuildArch:      noarch
@@ -30,13 +30,13 @@ can set random wallpaper by choosing, an image from the downloaded images.
 %define _binaries_in_noarch_packages_terminate_build   0
 
 %prep
-%autosetup -n %{name}-master 
+%autosetup -n %{name}-master
 
 
 %build
 lupdate-qt5 bingwallpapers.pro
 lrelease-qt5 bingwallpapers.pro
-qmake-qt5 "QT += qml quick widgets quickwidgets" "RESOURCES += qml.qrc images.qrc" 
+qmake-qt5 "QT += qml quick widgets quickwidgets" "RESOURCES += qml.qrc images.qrc"
 make
 
 %install
@@ -61,6 +61,9 @@ cp %{_builddir}/%{name}-master/bingwallpapers.desktop %{buildroot}/etc/xdg/autos
 
 
 %changelog
+* Mon Mar 12 2018 Junius LEKGWARA <phutigravel@gmail.com> - 1.0.4
+- Enabled HighDpi Scaling
+
 * Wed Jan 31 2018 Junius LEKGWARA <phutigravel@gmail.com> - 1.0.3
 - added custom download paths, user can select download directory of their choice
 
