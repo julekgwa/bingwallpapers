@@ -23,8 +23,8 @@ Requires:       curl
 Requires:       wget
 
 %description
-Download and set bing's wallpaper of the day as a desktop wallpaper and screen lock image.
-can set random wallpaper by choosing, an image from the downloaded images.
+Downloads Bing’s wallpaper of the day and sets it as a desktop wallpaper or a lock screen image. 
+The program can rotate over pictures in its directory in set intervals as well as delete old pictures after a set amount of time.
 
 %global debug_package %{nil}
 %define _binaries_in_noarch_packages_terminate_build   0
