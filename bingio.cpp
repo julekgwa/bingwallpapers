@@ -327,6 +327,8 @@ QString BingIO::run_script() {
 void BingIO::delete_wallpaper() {
   // delete the current wallpaper
   launch("rm -rf " + _bing_wall_directory + "/" + _current_wallpaper);
+  _current_wallpaper = "";
+  save_data();
 }
 
 void BingIO::rotateCmd(ulong millisec) {
