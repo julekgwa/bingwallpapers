@@ -1,7 +1,9 @@
 #include "bingio.h"
 
 BingIO::BingIO(QObject *parent) : QObject(parent),
-    _region("en-US"), _set_background_image(true), _set_lock_screen(false) , _rotate(0), _delete_days(0), m_process(new QProcess(this)), _refresh_milliseconds(create_refresh_milliseconds(8))
+    _region("en-US"), _set_background_image(true), _set_lock_screen(false) ,
+    _rotate(0), _delete_days(0), m_process(new QProcess(this)),
+    _refresh_milliseconds(create_refresh_milliseconds(8)), _force_download(1)
 {
     _app_directory = QStandardPaths::writableLocation(QStandardPaths::DataLocation);
     QString picture_directory = QStandardPaths::writableLocation(QStandardPaths::PicturesLocation);
@@ -12,6 +14,7 @@ BingIO::BingIO(QObject *parent) : QObject(parent),
     _bing_wall_directory = wallpaper_path;
     _config = app_dir.absoluteFilePath("config.yaml");
     _shell_script = app_dir.absoluteFilePath("bing.sh");
+    _download_script = 0;
 
     // check if appData folder exists
     if (!app_dir.exists()) {
@@ -241,6 +244,10 @@ void BingIO::create_yaml_map() {
     config << YAML::Value << _delete_days;
     config << YAML::Key << "REFRESH_TIME";
     config << YAML::Value << _refresh_minutes;
+    config << YAML::Key << "CURRENT_WALLPAPER";
+    config << YAML::Value << _current_wallpaper.toStdString();
+    config << YAML::Key << "DOWNLOAD_SCRIPT";
+    config << YAML::Value << _download_script;
     config << YAML::EndMap;
 
     _config_data = QString::fromStdString(config.c_str());
@@ -263,6 +270,10 @@ void BingIO::load_config() {
             _delete_days = config["SET_DELETE_DAYS"].as<int>();
         if (config["REFRESH_TIME"])
             _refresh_milliseconds = create_refresh_milliseconds(config["REFRESH_TIME"].as<int>());
+        if (config["CURRENT_WALLPAPER"])
+            _current_wallpaper = QString::fromStdString(config["CURRENT_WALLPAPER"].as<std::string>());
+        if (config["DOWNLOAD_SCRIPT"])
+            _download_script = config["DOWNLOAD_SCRIPT"].as<int>();
     }
 }
 
@@ -297,9 +308,41 @@ QString BingIO::launch(const QString &program)
 }
 
 QString BingIO::run_script() {
-    if (!file_exists(_shell_script))
+    if (!file_exists(_shell_script)) {
         create_shell_script();
-    return launch(_shell_script);
+    } else if (_force_download - _download_script > 0) {
+        create_shell_script();
+        _download_script = _force_download;
+        save_data();
+    }
+    QString wallpaper = launch(_shell_script);
+    wallpaper.remove(QRegExp("[\"\n]"));
+    if (!wallpaper.isEmpty()) {
+        _current_wallpaper = wallpaper;
+        save_data();
+    }
+    return wallpaper;
+}
+
+void BingIO::delete_wallpaper() {
+  // delete the current wallpaper
+  launch("rm -rf " + _bing_wall_directory + "/" + _current_wallpaper);
+}
+
+void BingIO::rotateCmd(ulong millisec) {
+  // set rotate from cmd
+  set_rotate(millisec);
+  save_data();
+  run_script();
+  if (millisec <= 1000) {
+    set_rotate(0);
+    save_data();
+  }
+}
+
+void BingIO::clean_dir(QString days) {
+  QString cmd = "find "+ _bing_wall_directory + " -type f -mtime +" + days + " -exec rm {} \;";
+  launch(cmd);
 }
 
 void BingIO::create_shell_script() {

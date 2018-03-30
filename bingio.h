@@ -53,6 +53,9 @@ public slots:
     void save_data();
     void set_days_to_delete_pic(ulong test);
     void update_next_refresh_date();
+    void delete_wallpaper();
+    void rotateCmd(ulong millisec);
+    void clean_dir(QString days);
     QString get_region_key(int region);
     QString run_script();
     bool dir_exists(QString dir);
@@ -66,6 +69,7 @@ private:
     QString _bing_wall_directory;
     QString _shell_script;
     QString _next_refresh;
+    QString _current_wallpaper;
     QString read_file(QString filename);
     void write_file(QString filename, QString text);
     bool file_exists(QString filename);
@@ -80,6 +84,8 @@ private:
     QString _config_data;
     QProcess *m_process;
     qint64 _refresh_milliseconds;
+    int _force_download;
+    int _download_script;
     int _refresh_minutes;
 
 };
