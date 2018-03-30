@@ -11,7 +11,6 @@
 #include "bingio.h"
 #include <QCommandLineParser>
 #include <QDebug>
-#include <QQuickStyle>
 
 // Declare a user-defined data type to work with an icon in QML
 Q_DECLARE_METATYPE(QSystemTrayIcon::ActivationReason)
@@ -22,8 +21,6 @@ Q_DECL_EXPORT int main(int argc, char *argv[])
 
 
     QApplication app(argc, argv);
-
-    QQuickStyle::setStyle("Material");
 
     // set application name
     app.setApplicationName("Bingwallpapers");

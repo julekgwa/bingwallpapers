@@ -1,4 +1,4 @@
-QT += qml quick widgets quickwidgets quickcontrols2
+QT += qml quick widgets quickwidgets
 CONFIG += c++11
 LIBS += -lyaml-cpp
 
