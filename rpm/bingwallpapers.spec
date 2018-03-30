@@ -22,7 +22,7 @@ Requires:       curl
 Requires:       wget
 
 %description
-Downloads Bing’s wallpaper of the day and sets it as a desktop wallpaper or a lock screen image. 
+Downloads Bing’s wallpaper of the day and sets it as a desktop wallpaper or a lock screen image.
 The program can rotate over pictures in its directory in set intervals as well as delete old pictures after a set amount of time.
 
 %global debug_package %{nil}
@@ -60,6 +60,9 @@ cp %{_builddir}/%{name}-master/bingwallpapers.desktop %{buildroot}/etc/xdg/autos
 
 
 %changelog
+* Mon Mar 12 2018 Junius LEKGWARA <phutigravel@gmail.com> - %{version}
+- Added command line support
+
 * Mon Mar 12 2018 Junius LEKGWARA <phutigravel@gmail.com> - 1.0.4
 - Enabled HighDpi Scaling
 - Added auto daily refresh
