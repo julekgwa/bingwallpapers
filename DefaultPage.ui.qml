@@ -118,7 +118,6 @@ BackgroundPage {
             width: 309
             height: 48
             Layout.fillWidth: true
-            implicitWidth: 257
             model: ["United States", "United Kingdom", "Deutsch", "Canada", "Australia", "France", "日本", "中国"]
             // @disable-check M222
             currentIndex: BingIO.set_combo_box_region()
