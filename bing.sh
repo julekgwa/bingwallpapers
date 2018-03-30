@@ -92,5 +92,5 @@ if [ "$SET_DELETE_DAYS" -ne "0" ]; then
     DEL="find ${WALLPAPER_DIR} -type f -mtime +${SET_DELETE_DAYS} -exec rm {} \;"
     eval $DEL
 fi
-
+echo ${FILE_PATH##*/}
 exit # exit the script
