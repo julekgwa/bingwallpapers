@@ -3,7 +3,7 @@
 
 Name:           %{name}
 Version:        %{version}
-Release:        1
+Release:        0
 Summary:        Set bing wallpaper as a desktop background image
 
 License:        GPLv3+
@@ -60,7 +60,10 @@ cp %{_builddir}/%{name}-master/bingwallpapers.desktop %{buildroot}/etc/xdg/autos
 
 
 %changelog
-* Mon Mar 12 2018 Junius LEKGWARA <phutigravel@gmail.com> - %{version}
+* Mon Apr 2 2018 Junius LEKGWARA <phutigravel@gmail.com> - %{version}
+- Added network detection, when the user connects to the internet, the script will run.
+
+* Fri Mar 30 2018 Junius LEKGWARA <phutigravel@gmail.com> - %{version}
 - Added command line support
 
 * Mon Mar 12 2018 Junius LEKGWARA <phutigravel@gmail.com> - 1.0.4
