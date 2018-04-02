@@ -60,14 +60,17 @@ ApplicationWindow {
         running: false
         onTriggered: {
             checkNetworkConnection.running = !BingIO.check_network_connection()
+            if (!checkNetworkConnection.running) {
+                BingIO.run_script();
+            }
         }
     }
 
     Component.onCompleted: {
-        delayScript.running = true
         refreshDaily.running = true
         refreshDaily.interval = BingIO.get_refresh_milliseconds
-         checkNetworkConnection.running = !BingIO.check_network_connection()
+        checkNetworkConnection.running = !BingIO.check_network_connection()
+        delayScript.running = !checkNetworkConnection.running
     }
 
     // system tray
@@ -156,9 +159,6 @@ ApplicationWindow {
                 refreshDate.text = "Next refresh: " + BingIO.get_next_refresh
                 refreshDaily.running = true
                 refreshDaily.interval = BingIO.get_refresh_milliseconds
-            }
-            onNetwork_status_changed: {
-                BingIO.run_script()
             }
         }
 

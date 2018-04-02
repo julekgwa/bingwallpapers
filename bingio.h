@@ -46,7 +46,6 @@ public:
 signals:
     void data_changed();
     void refresh_date_changed();
-    void network_status_changed();
 
 public slots:
     void set_region(QString rgn);

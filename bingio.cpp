@@ -344,8 +344,6 @@ void BingIO::rotateCmd(ulong millisec) {
 
 bool BingIO::check_network_connection() {
     bool connection = _network_manager.isOnline();
-    if (connection)
-        emit network_status_changed();
     return connection;
 }
 
