@@ -13,6 +13,7 @@
 #include <yaml-cpp/yaml.h>
 #include <QProcess>
 #include <QtCore/QDateTime>
+#include <QNetworkConfigurationManager>
 
 class BingIO : public QObject
 {
@@ -26,6 +27,7 @@ class BingIO : public QObject
     Q_PROPERTY(QString get_app_directory READ get_app_directory)
     Q_PROPERTY(qint64 get_refresh_milliseconds READ get_refresh_milliseconds)
     Q_PROPERTY(QString get_next_refresh READ get_next_refresh NOTIFY refresh_date_changed)
+    Q_PROPERTY(QString version MEMBER version CONSTANT)
 
 public:
     explicit BingIO(QObject *parent = 0);
@@ -39,10 +41,12 @@ public:
     bool get_lock_screen();
     qint64 get_refresh_milliseconds();
     QString get_next_refresh();
+    static const QString version;
 
 signals:
     void data_changed();
     void refresh_date_changed();
+    void network_status_changed();
 
 public slots:
     void set_region(QString rgn);
@@ -61,6 +65,7 @@ public slots:
     bool dir_exists(QString dir);
     bool dir_read_write(QString dir);
     int set_combo_box_region(void);
+    bool check_network_connection();
 
 private:
     QString _app_directory;
@@ -87,6 +92,7 @@ private:
     int _force_download;
     int _download_script;
     int _refresh_minutes;
+    QNetworkConfigurationManager _network_manager;
 
 };
 

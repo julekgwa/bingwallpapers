@@ -17,10 +17,10 @@ BackgroundPage {
 
     Text {
         id: text1
-        x: 158
+        x: 129
         y: 183
         color: "#ffffff"
-        text: qsTr("Version: 1.0.4")
+        text: qsTr("Version: " + BingIO.version)
         font.pixelSize: 16
     }
 

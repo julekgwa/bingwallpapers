@@ -25,7 +25,7 @@ Q_DECL_EXPORT int main(int argc, char *argv[])
     // set application name
     app.setApplicationName("Bingwallpapers");
     app.setOrganizationName("Linuxer");
-    app.setApplicationVersion("2018.03.30");
+    app.setApplicationVersion(BingIO::version);
     QQmlApplicationEngine engine;
 
     QQmlContext *context = engine.rootContext();

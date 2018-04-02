@@ -342,6 +342,13 @@ void BingIO::rotateCmd(ulong millisec) {
   }
 }
 
+bool BingIO::check_network_connection() {
+    bool connection = _network_manager.isOnline();
+    if (connection)
+        emit network_status_changed();
+    return connection;
+}
+
 void BingIO::clean_dir(QString days) {
   QString cmd = "find "+ _bing_wall_directory + " -type f -mtime +" + days + " -exec rm {} \;";
   launch(cmd);
@@ -351,3 +358,5 @@ void BingIO::create_shell_script() {
     launch("curl https://raw.githubusercontent.com/julekgwa/bingwallpaper/script-only/bing.sh --output " + _shell_script);
     launch("chmod +x " + _shell_script);
 }
+
+const QString BingIO::version = "2018.04.02";
