@@ -1,9 +1,9 @@
 %define name bingwallpapers
-%define version 2018.05-0
+%define version 2018.05
 
 Name:           %{name}
 Version:        %{version}
-Release:        2
+Release:        0
 Summary:        Set bing wallpaper as a desktop background image
 
 License:        GPLv3+
