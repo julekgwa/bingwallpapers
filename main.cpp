@@ -11,6 +11,7 @@
 #include "bingio.h"
 #include <QCommandLineParser>
 #include <QDebug>
+#include "commandlineparser.h"
 
 // Declare a user-defined data type to work with an icon in QML
 Q_DECLARE_METATYPE(QSystemTrayIcon::ActivationReason)
@@ -30,67 +31,12 @@ Q_DECL_EXPORT int main(int argc, char *argv[])
 
     QQmlContext *context = engine.rootContext();
     BingIO bing;
+    CommandLineParser cmd;
 
     // processs command line arguments
     if (argc > 1) {
-        QCommandLineParser parser;
-        //parser.setApplicationDescription("Downloads Bing’s wallpaper of the day and sets it as a desktop wallpaper or a lock screen image.");
-        parser.addHelpOption();
-        parser.addVersionOption();
-        QCommandLineOption refreshOption(QStringList() << "s" << "set", QCoreApplication::translate("main", "Downloads/Set new wallpaper"));
-        QCommandLineOption rotateOption(QStringList() << "r" << "rotate", QCoreApplication::translate("main", "Rotate over pictures in bingwallaper directory\n optionally set rotate intervals by passing <hours> <minutes>."));
-        QCommandLineOption deleteOption(QStringList() << "d" << "delete", QCoreApplication::translate("main", "Delete current wallpaper"));
-        QCommandLineOption cleanOption(QStringList() << "c" << "clean", QCoreApplication::translate("main", "Remove pictures older than optional <days>, default is 7 days"));
-        QCommandLineOption forceOption(QStringList() << "f" << "force", QCoreApplication::translate("main", "Forcefully execute command"));
-        parser.addOption(refreshOption);
-        parser.addOption(rotateOption);
-        parser.addOption(deleteOption);
-        parser.addOption(forceOption);
-        parser.addOption(cleanOption);
-        parser.process(app);
-
-        bool refresh = parser.isSet(refreshOption);
-        bool rotate = parser.isSet(rotateOption);
-        bool deleteOpt = parser.isSet(deleteOption);
-        bool force = parser.isSet(forceOption);
-        bool clean = parser.isSet(cleanOption);
-
-        const QStringList args = parser.positionalArguments();
-
-        if (refresh) {
-            if (force)
-                bing.delete_wallpaper();
-            bing.run_script();
-        }
-        if (rotate) {
-            unsigned long int millisec = 1000;
-            if (args.size()) {
-                int hours = args[0].toInt();
-                int minutes = 0;
-                if (args.size() < 2) {
-                    qWarning() << "Missing minutes, rotation will be set to hours.";
-                } else {
-                    minutes = args[1].toInt();
-                }
-                millisec = (hours * (60000 * 60) + (minutes * 60000));
-                if (millisec < 180000) {
-                    qWarning() << "Please enter time greater than 2 minutes.";
-                    return 0;
-                }
-            }
-            bing.rotateCmd(millisec);
-        }
-        if (deleteOpt) {
-            bing.delete_wallpaper();
-        }
-        if (clean) {
-            QString days = "7";
-            if (args.size()) {
-                days = args[0];
-            }
-            bing.clean_dir(days);
-        }
-        return 0;
+        cmd.setup(&app);
+        return cmd.process(&bing);
     }
 
     context->setContextProperty("BingIO", &bing);
