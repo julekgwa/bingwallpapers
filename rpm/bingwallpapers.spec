@@ -1,9 +1,9 @@
 %define name bingwallpapers
-%define version %{lua: print(os.date("%Y.%m.%d"))}
+%define version %{lua: print(os.date("%Y.%m"))}
 
 Name:           %{name}
 Version:        %{version}
-Release:        1
+Release:        2
 Summary:        Set bing wallpaper as a desktop background image
 
 License:        GPLv3+
