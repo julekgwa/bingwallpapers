@@ -289,7 +289,7 @@ qint64 BingIO::create_refresh_milliseconds(int time) {
         millisec = current_time.time().msecsSinceStartOfDay() - utc.time().msecsSinceStartOfDay();
     }
     _refresh_minutes = time;
-    _next_refresh = utc.toString("hh:mm ap dd.MM.yyyy t");
+    _next_refresh = utc.toString("hh:mm AP dd.MM.yyyy t");
     emit refresh_date_changed();
     return millisec;
 }
