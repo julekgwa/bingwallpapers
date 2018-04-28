@@ -33,6 +33,7 @@ The program can rotate over pictures in its directory in set intervals as well a
 
 
 %build
+cd src
 lupdate-qt5 bingwallpapers.pro
 lrelease-qt5 bingwallpapers.pro
 qmake-qt5 "QT += qml quick widgets quickwidgets" "RESOURCES += qml.qrc images.qrc"
@@ -46,10 +47,10 @@ mkdir -p %{buildroot}/etc/xdg/autostart/
 mkdir -p %{buildroot}/usr/share/bingwallpapers
 mkdir -p %{buildroot}/usr/share/applications
 
-cp %{_builddir}/%{name}-master/bingwallpapers %{buildroot}/usr/bin/
-cp %{_builddir}/%{name}-master/bingwallpapers.png %{buildroot}/usr/share/bingwallpapers
-cp %{_builddir}/%{name}-master/bingwallpapers.desktop %{buildroot}/usr/share/applications/
-cp %{_builddir}/%{name}-master/bingwallpapers.desktop %{buildroot}/etc/xdg/autostart/
+cp %{_builddir}/%{name}-master/src/bingwallpapers %{buildroot}/usr/bin/
+cp %{_builddir}/%{name}-master/src/bingwallpapers.png %{buildroot}/usr/share/bingwallpapers
+cp %{_builddir}/%{name}-master/src/bingwallpapers.desktop %{buildroot}/usr/share/applications/
+cp %{_builddir}/%{name}-master/src/bingwallpapers.desktop %{buildroot}/etc/xdg/autostart/
 
 %files
 /usr/bin/bingwallpapers
