@@ -47,10 +47,10 @@ mkdir -p %{buildroot}/etc/xdg/autostart/
 mkdir -p %{buildroot}/usr/share/bingwallpapers
 mkdir -p %{buildroot}/usr/share/applications
 
-cp %{_builddir}/%{name}-master/bingwallpapers %{buildroot}/usr/bin/
-cp %{_builddir}/%{name}-master/bingwallpapers.png %{buildroot}/usr/share/bingwallpapers
-cp %{_builddir}/%{name}-master/bingwallpapers.desktop %{buildroot}/usr/share/applications/
-cp %{_builddir}/%{name}-master/bingwallpapers.desktop %{buildroot}/etc/xdg/autostart/
+cp %{_builddir}/%{name}-master/src/bingwallpapers %{buildroot}/usr/bin/
+cp %{_builddir}/%{name}-master/src/bingwallpapers.png %{buildroot}/usr/share/bingwallpapers
+cp %{_builddir}/%{name}-master/src/bingwallpapers.desktop %{buildroot}/usr/share/applications/
+cp %{_builddir}/%{name}-master/src/bingwallpapers.desktop %{buildroot}/etc/xdg/autostart/
 
 %files
 /usr/bin/bingwallpapers
