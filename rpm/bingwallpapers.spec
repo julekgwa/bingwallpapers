@@ -33,6 +33,7 @@ The program can rotate over pictures in its directory in set intervals as well a
 
 
 %build
+cd src
 lupdate-qt5 bingwallpapers.pro
 lrelease-qt5 bingwallpapers.pro
 qmake-qt5 "QT += qml quick widgets quickwidgets" "RESOURCES += qml.qrc images.qrc"
