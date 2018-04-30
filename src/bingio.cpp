@@ -41,8 +41,13 @@ BingIO::BingIO(QObject *parent) : QObject(parent),
         }
     }
 
-    // get wallpaper info
-    set_wallpaper_info();
+    // set wallpaper info
+    QString info = _db.selectQuery(_current_wallpaper);
+
+    if (!info.isEmpty()) {
+        _wallpaper_info = info;
+        emit wallpaper_info_changed();
+    }
 
     // create wallpaper directory
     QDir wallpaper_dir(wallpaper_path);
@@ -200,16 +205,34 @@ QString BingIO::get_wallpaper_info() {
 }
 
 void BingIO::set_wallpaper_info() {
+    // set wallpaper info
+    QString info = _db.selectQuery(_current_wallpaper);
+
+    if (!info.isEmpty()) {
+        _wallpaper_info = info;
+        emit wallpaper_info_changed();
+        return;
+    }
+
     QString xmlText = launch("curl -s http://www.bing.com/HPImageArchive.aspx?format=xml&idx=0&n=1&mkt=" + _region);
 
     if (!xmlText.isEmpty()) {
         QDomDocument doc;
         doc.setContent(xmlText);
         QDomNodeList list = doc.elementsByTagName("copyright");
+        QDomNodeList urlBase = doc.elementsByTagName("url");
+        QString image_name = urlBase.at(0).toElement().text();
         QString wall_info = list.at(0).toElement().text();
 
-        if (!wall_info.isEmpty()) {
-            _wallpaper_info = wall_info;
+        if (image_name.contains(_current_wallpaper, Qt::CaseInsensitive)) {
+            if (!wall_info.isEmpty()) {
+                _wallpaper_info = wall_info;
+                emit wallpaper_info_changed();
+                _db.insertQuery(_current_wallpaper, _wallpaper_info);
+            }
+        } else {
+            _wallpaper_info = "NO CONTENT";
+            emit wallpaper_info_changed();
         }
     }
 }
@@ -341,6 +364,9 @@ QString BingIO::run_script() {
     wallpaper.remove(QRegExp("[\"\n]"));
     if (!wallpaper.isEmpty()) {
         _current_wallpaper = wallpaper;
+
+        // get wallpaper info
+        set_wallpaper_info();
         save_data();
     }
     return wallpaper;
@@ -379,4 +405,4 @@ void BingIO::create_shell_script() {
     launch("chmod +x " + _shell_script);
 }
 
-const QString BingIO::version = "2018.04";
+const QString BingIO::version = "2018.05";

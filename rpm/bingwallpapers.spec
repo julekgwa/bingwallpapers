@@ -61,10 +61,13 @@ cp %{_builddir}/%{name}-master/src/bingwallpapers.desktop %{buildroot}/etc/xdg/a
 
 
 %changelog
-* Mon Apr 2 2018 Junius LEKGWARA <phutigravel@gmail.com> - %{version}
+* Tue May 1 2018 Junius LEKGWARA <phutigravel@gmail.com> - 2018.05
+- display wallpaper copyright info, in a dialog box
+
+* Mon Apr 2 2018 Junius LEKGWARA <phutigravel@gmail.com> - 2018.04
 - Added network detection, when the user connects to the internet, the script will run.
 
-* Fri Mar 30 2018 Junius LEKGWARA <phutigravel@gmail.com> - %{version}
+* Fri Mar 30 2018 Junius LEKGWARA <phutigravel@gmail.com> - 2018.03
 - Added command line support
 
 * Mon Mar 12 2018 Junius LEKGWARA <phutigravel@gmail.com> - 1.0.4

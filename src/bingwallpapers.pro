@@ -1,4 +1,4 @@
-QT += qml quick widgets quickwidgets xml
+QT += qml quick widgets quickwidgets xml sql
 CONFIG += c++11
 LIBS += -lyaml-cpp
 
@@ -15,7 +15,8 @@ DEFINES += QT_DEPRECATED_WARNINGS
 
 SOURCES += main.cpp \
     bingio.cpp \
-    commandlineparser.cpp
+    commandlineparser.cpp \
+    dbmanager.cpp
 
 RESOURCES += qml.qrc \
     images.qrc
@@ -33,4 +34,5 @@ else: unix:!android: target.path = /opt/$${TARGET}/bin
 
 HEADERS += \
     bingio.h \
-    commandlineparser.h
+    commandlineparser.h \
+    dbmanager.h

@@ -177,6 +177,9 @@ ApplicationWindow {
                 refreshDaily.running = true
                 refreshDaily.interval = BingIO.get_refresh_milliseconds
             }
+            onWallpaper_info_changed: {
+               aboutTodaysWallpaper.text = BingIO.get_wallpaper_info
+            }
         }
 
         DefaultPage {

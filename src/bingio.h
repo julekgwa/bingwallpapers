@@ -15,6 +15,7 @@
 #include <QtCore/QDateTime>
 #include <QNetworkConfigurationManager>
 #include <QDomDocument>
+#include "dbmanager.h"
 
 class BingIO : public QObject
 {
@@ -27,7 +28,7 @@ class BingIO : public QObject
     Q_PROPERTY(QString get_bing_wall_directory READ get_bing_wall_directory WRITE set_bing_wall_directory NOTIFY data_changed)
     Q_PROPERTY(QString get_app_directory READ get_app_directory)
     Q_PROPERTY(qint64 get_refresh_milliseconds READ get_refresh_milliseconds)
-    Q_PROPERTY(QString get_wallpaper_info READ get_wallpaper_info)
+    Q_PROPERTY(QString get_wallpaper_info READ get_wallpaper_info NOTIFY wallpaper_info_changed)
     Q_PROPERTY(QString get_next_refresh READ get_next_refresh NOTIFY refresh_date_changed)
     Q_PROPERTY(QString version MEMBER version CONSTANT)
 
@@ -49,6 +50,7 @@ public:
 signals:
     void data_changed();
     void refresh_date_changed();
+    void wallpaper_info_changed();
 
 public slots:
     void set_region(QString rgn);
@@ -77,8 +79,7 @@ private:
     QString _shell_script;
     QString _next_refresh;
     QString _current_wallpaper;
-    QString _xml_url = "http://www.bing.com/HPImageArchive.aspx?format=xml&idx=0&n=1&mkt=";
-    QString _wallpaper_info = "Info about today's wallpaper will be shown here.";
+    QString _wallpaper_info = "NO CONTENT.";
     QString read_file(QString filename);
     void write_file(QString filename, QString text);
     bool file_exists(QString filename);
@@ -98,6 +99,7 @@ private:
     int _download_script;
     int _refresh_minutes;
     QNetworkConfigurationManager _network_manager;
+    DbManager _db;
 
 };
 
