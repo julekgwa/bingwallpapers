@@ -470,6 +470,9 @@ ApplicationWindow {
         text: "Info about today's wallpaper will be shown here."
         standardButtons: StandardButton.Close
         icon: StandardIcon.Information
+        onAccepted: {
+            aboutTodaysWallpaper.close()
+        }
     }
 
     MessageDialog {
