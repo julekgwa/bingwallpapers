@@ -23,6 +23,8 @@ Q_DECL_EXPORT int main(int argc, char *argv[])
 
     QApplication app(argc, argv);
 
+    qApp->setQuitOnLastWindowClosed(false); // prevent app from closing, when closing dialog message
+
     // set application name
     app.setApplicationName("Bingwallpapers");
     app.setOrganizationName("Linuxer");

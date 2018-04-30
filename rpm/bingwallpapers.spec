@@ -1,5 +1,5 @@
 %define name bingwallpapers
-%define version 2018.05
+%define version %{lua: print(os.date("%Y.%m"))}
 
 Name:           %{name}
 Version:        %{version}

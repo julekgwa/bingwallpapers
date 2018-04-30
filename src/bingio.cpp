@@ -41,6 +41,9 @@ BingIO::BingIO(QObject *parent) : QObject(parent),
         }
     }
 
+    // get wallpaper info
+    set_wallpaper_info();
+
     // create wallpaper directory
     QDir wallpaper_dir(wallpaper_path);
     if (!wallpaper_dir.exists()) {
@@ -192,6 +195,25 @@ bool BingIO::get_lock_screen() {
     return _set_lock_screen;
 }
 
+QString BingIO::get_wallpaper_info() {
+    return _wallpaper_info;
+}
+
+void BingIO::set_wallpaper_info() {
+    QString xmlText = launch("curl -s http://www.bing.com/HPImageArchive.aspx?format=xml&idx=0&n=1&mkt=" + _region);
+
+    if (!xmlText.isEmpty()) {
+        QDomDocument doc;
+        doc.setContent(xmlText);
+        QDomNodeList list = doc.elementsByTagName("copyright");
+        QString wall_info = list.at(0).toElement().text();
+
+        if (!wall_info.isEmpty()) {
+            _wallpaper_info = wall_info;
+        }
+    }
+}
+
 void BingIO::set_background_image(bool image) {
     if (image != _set_background_image) {
         _set_background_image = image;
@@ -325,21 +347,21 @@ QString BingIO::run_script() {
 }
 
 void BingIO::delete_wallpaper() {
-  // delete the current wallpaper
-  launch("rm -rf " + _bing_wall_directory + "/" + _current_wallpaper);
-  _current_wallpaper = "";
-  save_data();
+    // delete the current wallpaper
+    launch("rm -rf " + _bing_wall_directory + "/" + _current_wallpaper);
+    _current_wallpaper = "";
+    save_data();
 }
 
 void BingIO::rotateCmd(ulong millisec) {
-  // set rotate from cmd
-  set_rotate(millisec);
-  save_data();
-  run_script();
-  if (millisec <= 1000) {
-    set_rotate(0);
+    // set rotate from cmd
+    set_rotate(millisec);
     save_data();
-  }
+    run_script();
+    if (millisec <= 1000) {
+        set_rotate(0);
+        save_data();
+    }
 }
 
 bool BingIO::check_network_connection() {
@@ -348,8 +370,8 @@ bool BingIO::check_network_connection() {
 }
 
 void BingIO::clean_dir(QString days) {
-  QString cmd = "find "+ _bing_wall_directory + " -type f -mtime +" + days + " -exec rm {} \;";
-  launch(cmd);
+    QString cmd = "find "+ _bing_wall_directory + " -type f -mtime +" + days + " -exec rm {} \;";
+    launch(cmd);
 }
 
 void BingIO::create_shell_script() {

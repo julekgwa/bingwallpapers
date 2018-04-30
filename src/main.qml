@@ -76,6 +76,7 @@ ApplicationWindow {
         refreshDaily.interval = BingIO.get_refresh_milliseconds
         checkNetworkConnection.running = !BingIO.check_network_connection()
         delayScript.running = !checkNetworkConnection.running
+        aboutTodaysWallpaper.text = BingIO.get_wallpaper_info
     }
 
     // system tray
@@ -140,7 +141,7 @@ ApplicationWindow {
         }
 
         Tray.MenuItem {
-            text: qsTr("Today's wallpaper")
+            text: qsTr("About today's wallpaper")
             id: todaysWallpaper
             iconName: "Info"
             iconSource: "qrc:/resources/info.png"
@@ -467,7 +468,6 @@ ApplicationWindow {
     MessageDialog {
         id: aboutTodaysWallpaper
         title: "Copyright"
-        text: "Info about today's wallpaper will be shown here."
         standardButtons: StandardButton.Close
         icon: StandardIcon.Information
         onAccepted: {
