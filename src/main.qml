@@ -140,6 +140,17 @@ ApplicationWindow {
         }
 
         Tray.MenuItem {
+            text: qsTr("Today's wallpaper")
+            id: todaysWallpaper
+            iconName: "Info"
+            iconSource: "qrc:/resources/info.png"
+
+            onTriggered: {
+                aboutTodaysWallpaper.open()
+            }
+        }
+
+        Tray.MenuItem {
             text: qsTr("Quit")
             onTriggered: {
                 systemTray.hide()
@@ -451,6 +462,14 @@ ApplicationWindow {
         text: "Selected directory doesn't exists."
         standardButtons: StandardButton.Close
         icon: StandardIcon.Critical
+    }
+
+    MessageDialog {
+        id: aboutTodaysWallpaper
+        title: "Copyright"
+        text: "Info about today's wallpaper will be shown here."
+        standardButtons: StandardButton.Close
+        icon: StandardIcon.Information
     }
 
     MessageDialog {

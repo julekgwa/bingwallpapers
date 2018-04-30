@@ -3,7 +3,7 @@
 BingIO::BingIO(QObject *parent) : QObject(parent),
     _region("en-US"), _set_background_image(true), _set_lock_screen(false) ,
     _rotate(0), _delete_days(0), m_process(new QProcess(this)),
-    _refresh_milliseconds(create_refresh_milliseconds(8)), _force_download(1)
+    _refresh_milliseconds(create_refresh_milliseconds(8)), _force_download(2)
 {
     _app_directory = QStandardPaths::writableLocation(QStandardPaths::DataLocation);
     QString picture_directory = QStandardPaths::writableLocation(QStandardPaths::PicturesLocation);

@@ -12,5 +12,6 @@
         <file>resources/refresh.png</file>
         <file>resources/refresh-hover.png</file>
         <file>resources/quit.png</file>
+        <file>resources/info.png</file>
     </qresource>
 </RCC>
