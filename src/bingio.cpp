@@ -223,8 +223,10 @@ void BingIO::set_wallpaper_info() {
         QDomNodeList urlBase = doc.elementsByTagName("url");
         QString image_name = urlBase.at(0).toElement().text();
         QString wall_info = list.at(0).toElement().text();
+        QString current_image = _current_wallpaper;
+        current_image.replace(QString("1920x1200.jpg"), "");
 
-        if (image_name.contains(_current_wallpaper, Qt::CaseInsensitive)) {
+        if (image_name.contains(current_image, Qt::CaseInsensitive)) {
             if (!wall_info.isEmpty()) {
                 _wallpaper_info = wall_info;
                 emit wallpaper_info_changed();
