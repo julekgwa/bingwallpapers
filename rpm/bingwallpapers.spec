@@ -3,7 +3,7 @@
 
 Name:           %{name}
 Version:        %{version}
-Release:        0
+Release:        2
 Summary:        Set bing wallpaper as a desktop background image
 
 License:        GPLv3+
