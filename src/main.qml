@@ -1,5 +1,5 @@
-import QtQuick 2.7
-import QtQuick.Controls 2.0
+import QtQuick 2.9
+import QtQuick.Controls 2.2
 import QtQuick.Controls 1.4 as Tray
 import QtQuick.Dialogs 1.2
 import QtQuick.Extras 1.2
