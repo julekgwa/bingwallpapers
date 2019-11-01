@@ -8,7 +8,7 @@ Summary:        Set bing wallpaper as a desktop background image
 
 License:        GPLv3+
 URL:            bingwallpapers.lekgoara.com
-Source0:        https://github.com/julekgwa/bingwallpapers/archive/master.tar.gz#/%{name}-%{version}-%{release}.tar.gz
+Source0:        https://github.com/julekgwa/bingwallpapers/archive/master.tar.gz#/%{name}-%{version}.tar.gz
 BuildArch:      noarch
 BuildRoot:      %{_tmppath}/%{name}-buildroot
 
