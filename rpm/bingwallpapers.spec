@@ -1,14 +1,14 @@
 %define name bingwallpapers
-%define version %{lua: print(os.date("%Y.%m"))}
+%define version %{lua: print(os.date("%Y.%m.%d"))}
 
 Name:           %{name}
 Version:        %{version}
-Release:        1%{?dist}
+Release:        %{?dist}
 Summary:        Set bing wallpaper as a desktop background image
 
 License:        GPLv3+
 URL:            bingwallpapers.lekgoara.com
-Source0:        https://github.com/julekgwa/bingwallpapers/archive/master.tar.gz#/%{name}-%{version}-%{release}.tar.gz
+Source0:        https://github.com/julekgwa/bingwallpapers/archive/master.tar.gz#/%{name}-%{version}.tar.gz
 BuildArch:      noarch
 BuildRoot:      %{_tmppath}/%{name}-buildroot
 
