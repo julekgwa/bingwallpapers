@@ -407,4 +407,4 @@ void BingIO::create_shell_script() {
     launch("chmod +x " + _shell_script);
 }
 
-const QString BingIO::version = "2019.05.19";
+const QString BingIO::version = "2020-03-08";

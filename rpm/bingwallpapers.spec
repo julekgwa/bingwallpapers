@@ -61,6 +61,9 @@ cp %{_builddir}/%{name}-master/src/bingwallpapers.desktop %{buildroot}/etc/xdg/a
 
 
 %changelog
+* Sun Mar 8 2020 Junius LEKGWARA <phutigravel@gmail.com> - 2020-03-8
+- updated bingwallpaper home page
+
 * Tue May 1 2018 Junius LEKGWARA <phutigravel@gmail.com> - 2018.05
 - display wallpaper copyright info, in a dialog box
 

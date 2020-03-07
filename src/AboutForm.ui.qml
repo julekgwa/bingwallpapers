@@ -69,7 +69,7 @@ BackgroundPage {
         font.pixelSize: 16
         // @disable-check M222
         onLinkActivated: Qt.openUrlExternally(
-                             "http://bingwallpapers.lekgoara.com")
+                             "https://bingwallpapers.github.io")
 
         MouseArea {
             anchors.fill: parent

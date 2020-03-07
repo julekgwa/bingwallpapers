@@ -37,6 +37,7 @@ ApplicationWindow {
 
         onTriggered: {
             BingIO.run_script()
+            BingIO.update_next_refresh_date()
         }
     }
 
@@ -67,6 +68,7 @@ ApplicationWindow {
             checkNetworkConnection.running = !BingIO.check_network_connection()
             if (!checkNetworkConnection.running) {
                 BingIO.run_script();
+                BingIO.update_next_refresh_date()
             }
         }
     }
