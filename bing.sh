@@ -55,7 +55,7 @@ if [ $? -eq 0 ];
 then
     if [[ `wget --max-redirect=0 -S --spider $WALLPAPER_URL  2>&1 | grep 'HTTP/1.1 200 OK'` ]];
     then
-        FILE_PATH=$WALLPAPER_DIR${WALLPAPER_URL##*/}
+        FILE_PATH=$WALLPAPER_DIR${WALLPAPER_URL##*OHR.}
         curl -s -o $FILE_PATH $WALLPAPER_URL
     elif [[ `wget -S --spider $DEFAULT_WALLPAPER_URL  2>&1 | grep 'HTTP/1.1 200 OK'` ]];
     then
