@@ -29,7 +29,9 @@ On GNOME there is no tray by default; install the AppIndicator extension to get 
 sudo dnf install -y gnome-shell-extension-appindicator
 ```
 
-Without a tray, closing the window quits the app.
+Without a tray, closing the window still leaves the app running in the background, so the
+daily refresh keeps working. Start Bingwallpapers again to show the window, and use **Quit**
+in the window to stop it.
 
 Command line options (run `bingwallpapers --help` for the full list):
 

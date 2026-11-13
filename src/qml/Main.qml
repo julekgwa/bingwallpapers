@@ -40,18 +40,19 @@ ApplicationWindow {
     }
 
     Component.onCompleted: {
-        // Autostart keeps the window in the tray unless there is no tray.
-        if (!startHidden || !tray.available)
+        // Started at login (--background): stay out of the way. This does not
+        // depend on a tray being found, because the desktop's tray is often
+        // not ready yet when apps are started at login.
+        if (!startHidden)
             show()
     }
 
+    // Closing the window keeps the app running, so the daily refresh and
+    // rotation continue. Open it again from the tray, or by starting the app
+    // again; "Quit" in the tray menu or the footer ends it.
     onClosing: (close) => {
-        if (tray.available) {
-            close.accepted = false
-            hide()
-        } else {
-            Qt.quit()
-        }
+        close.accepted = false
+        hide()
     }
 
     Connections {
@@ -496,6 +497,11 @@ ApplicationWindow {
                     color: Theme.fg2
                     font.pixelSize: 12
                     font.weight: Font.Medium
+                }
+                LinkButton {
+                    text: qsTr("Quit")
+                    Accessible.description: qsTr("Stop Bing Wallpapers, including the daily refresh")
+                    onClicked: Qt.quit()
                 }
                 LinkButton {
                     text: qsTr("About")
