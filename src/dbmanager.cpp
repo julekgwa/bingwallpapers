@@ -32,10 +32,16 @@ void DbManager::dbConnect(const QString &path) {
 }
 
 void DbManager::dbInit() {
-    if (_connected) {
-        QSqlQuery create_tb(_db);
-        create_tb.exec(_create_table);
-    }
+    if (!_connected)
+        return;
+
+    QSqlQuery query(_db);
+    query.exec(_create_table);
+
+    // Carry over what older versions stored; the old table is left in place.
+    if (query.exec("SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = 'bingwallpapers'") && query.first())
+        query.exec("INSERT OR IGNORE INTO wallpaper_info (image_name, description) "
+                   "SELECT image_name, description FROM bingwallpapers");
 }
 
 bool DbManager::insertQuery(const QString &image_name, const QString &description) {
@@ -43,7 +49,7 @@ bool DbManager::insertQuery(const QString &image_name, const QString &descriptio
         return false;
 
     QSqlQuery insert(_db);
-    insert.prepare("INSERT INTO bingwallpapers (image_name, description) VALUES(:image_name, :description)");
+    insert.prepare("INSERT OR REPLACE INTO wallpaper_info (image_name, description) VALUES(:image_name, :description)");
     insert.bindValue(":image_name", image_name);
     insert.bindValue(":description", description);
     return insert.exec();
@@ -54,7 +60,7 @@ QString DbManager::selectQuery(const QString &image_name) {
         return QString();
 
     QSqlQuery select(_db);
-    select.prepare("SELECT description FROM bingwallpapers WHERE image_name = :image_name");
+    select.prepare("SELECT description FROM wallpaper_info WHERE image_name = :image_name");
     select.bindValue(":image_name", image_name);
     if (select.exec() && select.first())
         return select.value(0).toString();

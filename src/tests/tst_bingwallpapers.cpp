@@ -12,6 +12,8 @@
 #include <QFile>
 #include <QMap>
 #include <QSignalSpy>
+#include <QSqlDatabase>
+#include <QSqlQuery>
 #include <QTcpServer>
 #include <QTcpSocket>
 #include <QTemporaryDir>
@@ -571,6 +573,54 @@ private slots:
         QVERIFY(!QFile::exists(io.wallpaperDir() + "/Test_EN-US1_1920x1200.jpg"));   // one copy only
         QVERIFY(QFile::exists(io.wallpaperDir() + "/other-day.jpg"));
         QCOMPARE(io._current_wallpaper, QString("Test_EN-US1_UHD.jpg"));
+    }
+
+    // The picture's title must not disappear when the same picture is saved
+    // under another name (a different size).
+    void titleSurvivesSwitchingQuality()
+    {
+        FakeBing bing;
+        bing.route("/HPImageArchive.aspx", 200, kFeed);
+        bing.route(kUhdPath, 200, kJpeg);
+        bing.route(kPreferredPath, 200, kJpeg);
+
+        BingIO io(appDir, picturesDir, nullptr);
+        QCOMPARE(refreshOnce(io, bing).value(0).toBool(), true);
+        QCOMPARE(io.wallpaperTitle(), QString("Test title"));          // 4K: Test_EN-US1_UHD.jpg
+
+        io.setUltraHd(false);
+        QCOMPARE(refreshOnce(io, bing).value(0).toBool(), true);
+        QVERIFY(QFile::exists(io.wallpaperDir() + "/Test_EN-US1_1920x1200.jpg"));
+        QCOMPARE(io.wallpaperTitle(), QString("Test title"));          // Full HD: another name, same title
+        QCOMPARE(io.wallpaperCopyright(), QString::fromUtf8("\xC2\xA9 Test Author"));
+    }
+
+    // A database written by an older version keeps working.
+    void oldDatabaseIsMigrated()
+    {
+        QDir().mkpath(appDir);
+        {
+            QSqlDatabase old = QSqlDatabase::addDatabase("QSQLITE", "legacy");
+            old.setDatabaseName(appDir + "/bingwallpaper.db");
+            QVERIFY(old.open());
+            QSqlQuery q(old);
+            QVERIFY(q.exec("CREATE TABLE bingwallpapers(id INTEGER PRIMARY KEY AUTOINCREMENT, image_name TEXT NOT NULL, "
+                           "description TEXT NOT NULL, CONSTRAINT description_unique UNIQUE (description), "
+                           "CONSTRAINT image_name_unique UNIQUE (image_name))"));
+            QVERIFY(q.exec(QString::fromUtf8("INSERT INTO bingwallpapers (image_name, description) "
+                                             "VALUES ('Old_EN-US1_1920x1200.jpg', 'Old title (\xC2\xA9 Old Author)')")));
+            old.close();
+        }
+        QSqlDatabase::removeDatabase("legacy");
+
+        QFile config(appDir + "/config.yaml");
+        QVERIFY(config.open(QIODevice::WriteOnly));
+        config.write("CURRENT_WALLPAPER: Old_EN-US1_1920x1200.jpg\n");
+        config.close();
+
+        BingIO io(appDir, picturesDir, nullptr);
+        QCOMPARE(io.wallpaperTitle(), QString("Old title"));
+        QCOMPARE(io.wallpaperCopyright(), QString::fromUtf8("\xC2\xA9 Old Author"));
     }
 
     void refreshKeepsFullHdWhenUltraHdIsNotAvailable()
