@@ -1,88 +1,78 @@
 #include <QApplication>
-#include <QQmlApplicationEngine>
+#include <QCoreApplication>
 #include <QIcon>
-#include <QQuickWidget>
-#include <QSystemTrayIcon>
+#include <QLocalServer>
+#include <QLocalSocket>
+#include <QQmlApplicationEngine>
 #include <QQmlContext>
-#include <QQmlEngine>
-#include <QSystemSemaphore>
-#include <QSharedMemory>
-#include <QMessageBox>
 #include "bingio.h"
-#include <QCommandLineParser>
-#include <QDebug>
 #include "commandlineparser.h"
 
-// Declare a user-defined data type to work with an icon in QML
-Q_DECLARE_METATYPE(QSystemTrayIcon::ActivationReason)
-Q_DECL_EXPORT int main(int argc, char *argv[])
+static void setupIdentity()
 {
+    QCoreApplication::setApplicationName("Bingwallpapers");
+    QCoreApplication::setOrganizationName("Linuxer");
+    QCoreApplication::setApplicationVersion(QStringLiteral(BINGWALLPAPERS_VERSION));
+}
 
-    QGuiApplication::setAttribute(Qt::AA_EnableHighDpiScaling);
+int main(int argc, char *argv[])
+{
+    QStringList arguments;
+    for (int i = 0; i < argc; ++i)
+        arguments << QString::fromLocal8Bit(argv[i]);
 
-
-    QApplication app(argc, argv);
-
-    qApp->setQuitOnLastWindowClosed(false); // prevent app from closing, when closing dialog message
-
-    // set application name
-    app.setApplicationName("Bingwallpapers");
-    app.setOrganizationName("Linuxer");
-    app.setApplicationVersion(BingIO::version);
-    QQmlApplicationEngine engine;
-
-    QQmlContext *context = engine.rootContext();
-    BingIO bing;
-    CommandLineParser cmd;
-
-    // processs command line arguments
-    if (argc > 1) {
-        cmd.setup(&app);
+    // Command line actions run without a GUI, so they also work over ssh or cron.
+    CommandLineParser cmd(arguments);
+    if (cmd.isCommand()) {
+        QCoreApplication app(argc, argv);
+        setupIdentity();
+        cmd.showInformation();
+        BingIO bing(nullptr);
         return cmd.process(&bing);
     }
 
-    context->setContextProperty("BingIO", &bing);
-    QSystemSemaphore semaphore("Bingwallpapers", 1);  // create semaphore
-    semaphore.acquire(); // Raise the semaphore, barring other instances to work with shared memory
+    QApplication app(argc, argv);
+    setupIdentity();
+    app.setQuitOnLastWindowClosed(false); // the app lives in the system tray
+    app.setWindowIcon(QIcon(":/resources/bing.png"));
 
-#ifndef Q_OS_WIN32
-    // in linux / unix shared memory is not freed when the application terminates abnormally,
-    // so you need to get rid of the garbage
-    QSharedMemory nix_fix_shared_memory("Bingwallpapers Shared Memory");
-    if(nix_fix_shared_memory.attach()){
-        nix_fix_shared_memory.detach();
+    // Single instance: a second launch asks the first one to show its window.
+    const QString serverName = QStringLiteral("bingwallpapers-%1")
+            .arg(QString::fromLocal8Bit(qgetenv("USER")));
+    {
+        QLocalSocket probe;
+        probe.connectToServer(serverName);
+        if (probe.waitForConnected(500)) {
+            probe.write("show");
+            probe.waitForBytesWritten(500);
+            return 0;
+        }
     }
-#endif
+    QLocalServer::removeServer(serverName); // stale socket from a crash
+    QLocalServer instanceServer;
+    if (!instanceServer.listen(serverName))
+        qWarning() << "Single-instance server unavailable:" << instanceServer.errorString();
 
-    QSharedMemory sharedMemory("Bingwallpapers Shared Memory");  // Create a copy of the shared memory
-    bool is_running;            // variable to test the already running application
-    if (sharedMemory.attach()){ // We are trying to attach a copy of the shared memory
-        // To an existing segment
-        is_running = true;      // If successful, it determines that there is already a running instance
-    }else{
-        sharedMemory.create(1); // Otherwise allocate 1 byte of memory
-        is_running = false;     // And determines that another instance is not running
-    }
-    semaphore.release();
+    BingIO bing(nullptr);
+    BingIO::setInstance(&bing);
 
-    // If you already run one instance of the application, then we inform the user about it
-    // and complete the current instance of the application
-    if(is_running){
-        QMessageBox msgBox;
-        msgBox.setIcon(QMessageBox::Warning);
-        msgBox.setText("The application is already running.\n"
-                       "Open your system icon tray.");
-        msgBox.exec();
-        return -1;
-    }
-    // Register QSystemTrayIcon in Qml
-    qmlRegisterType<QSystemTrayIcon>("QSystemTrayIcon", 1, 0, "QSystemTrayIcon");
-    // Register in QML the data type of click by tray icon
-    qRegisterMetaType<QSystemTrayIcon::ActivationReason>("ActivationReason");
-    // Set icon in the context of the engine
-    engine.rootContext()->setContextProperty("iconTray", QIcon(":/resources/bing.png"));
-    engine.load(QUrl(QStringLiteral("qrc:/main.qml")));
+    QQmlApplicationEngine engine;
+    engine.rootContext()->setContextProperty("startHidden", cmd.startHidden());
+    QObject::connect(&engine, &QQmlApplicationEngine::objectCreationFailed,
+                     &app, [] { QCoreApplication::exit(-1); }, Qt::QueuedConnection);
+    engine.loadFromModule("BingApp", "Main");
     if (engine.rootObjects().isEmpty())
         return -1;
+
+    QObject *window = engine.rootObjects().constFirst();
+    QObject::connect(&instanceServer, &QLocalServer::newConnection, &app, [&] {
+        while (QLocalSocket *client = instanceServer.nextPendingConnection()) {
+            QObject::connect(client, &QLocalSocket::disconnected, client, &QObject::deleteLater);
+            client->disconnectFromServer();
+            QMetaObject::invokeMethod(window, "showWindow");
+        }
+    });
+
+    bing.startScheduling();
     return app.exec();
 }

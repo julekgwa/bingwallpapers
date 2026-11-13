@@ -1,30 +1,40 @@
 #ifndef COMMANDLINEPARSER_H
 #define COMMANDLINEPARSER_H
 
-#include <QObject>
 #include <QCommandLineParser>
-#include <QApplication>
 #include <QStringList>
-#include "bingio.h"
 
-class CommandLineParser : public QObject
+class BingIO;
+
+class CommandLineParser
 {
-    Q_OBJECT
 public:
-    explicit CommandLineParser(QObject *parent = nullptr);
-    void setup(QApplication *app);
-    int process(BingIO *bing);
+    // Parses the arguments without needing an application object, so the
+    // caller can pick QCoreApplication (CLI) or QApplication (GUI).
+    explicit CommandLineParser(const QStringList &arguments);
 
-signals:
+    // True when an action (set, rotate, delete, clean, 4k, help, version) was asked for.
+    bool isCommand() const { return _command; }
+    // True when the window should start hidden in the tray (autostart).
+    bool startHidden() const { return _background; }
+    // Prints --help / --version and exits. Needs an application object.
+    void showInformation();
+    int process(BingIO *bing) const;
 
-public slots:
 private:
-   bool _refresh;
-   bool _rotate;
-   bool _deleteOpt;
-   bool _force;
-   bool _clean;
-   QStringList _args;
+    QCommandLineParser _parser;
+    QStringList _arguments;
+    bool _information = false;
+    bool _refresh = false;
+    bool _rotate = false;
+    bool _delete = false;
+    bool _force = false;
+    bool _clean = false;
+    bool _background = false;
+    bool _hasUltraHd = false;
+    QString _ultraHd; // the value given to --4k
+    bool _command = false;
+    QStringList _args;
 };
 
 #endif // COMMANDLINEPARSER_H

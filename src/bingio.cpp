@@ -1,410 +1,721 @@
 #include "bingio.h"
 
-BingIO::BingIO(QObject *parent) : QObject(parent),
-    _region("en-US"), _set_background_image(true), _set_lock_screen(false) ,
-    _rotate(0), _delete_days(0), m_process(new QProcess(this)),
-    _refresh_milliseconds(create_refresh_milliseconds(8)), _force_download(2)
+#include <QDebug>
+#include <QDir>
+#include <QEventLoop>
+#include <QFile>
+#include <QFileInfo>
+#include <QLocale>
+#include <QNetworkInformation>
+#include <QNetworkReply>
+#include <QNetworkRequest>
+#include <QProcess>
+#include <QProcessEnvironment>
+#include <QRandomGenerator>
+#include <QRegularExpression>
+#include <QSaveFile>
+#include <QStandardPaths>
+#include <QTimeZone>
+#include <QUrlQuery>
+#include <yaml-cpp/yaml.h>
+
+namespace {
+
+constexpr int kFeedTimeoutMs = 30000;
+constexpr int kDownloadTimeoutMs = 120000;
+constexpr int kCommandTimeoutMs = 15000;
+constexpr int kStartupDelayMs = 10000;
+constexpr qint64 kMinImageBytes = 1024;
+
+const QStringList kImageFilters = {"*.jpg", "*.jpeg", "*.png"};
+
+bool looksLikeImage(const QByteArray &data)
 {
-    _app_directory = QStandardPaths::writableLocation(QStandardPaths::DataLocation);
-    QString picture_directory = QStandardPaths::writableLocation(QStandardPaths::PicturesLocation);
-    QDir app_dir(_app_directory);
+    return data.size() >= kMinImageBytes
+            && (data.startsWith("\xFF\xD8\xFF") || data.startsWith("\x89PNG"));
+}
 
-    QString wallpaper_path = picture_directory + "/Bingwallpapers";
+QString ensureDirectory(const QString &dir)
+{
+    QDir().mkpath(dir);
+    return dir;
+}
 
-    _bing_wall_directory = wallpaper_path;
-    _config = app_dir.absoluteFilePath("config.yaml");
-    _shell_script = app_dir.absoluteFilePath("bing.sh");
-    _download_script = 0;
+// "en-UK" is not a Bing market; older configs may still contain it.
+QString normalizeRegion(const QString &region)
+{
+    return region == "en-UK" ? QStringLiteral("en-GB") : region;
+}
 
-    // check if appData folder exists
-    if (!app_dir.exists()) {
-        app_dir.mkpath(_app_directory);
-
-        // build yaml map
-        create_yaml_map();
-        write_file(_config, _config_data);
-
-        create_shell_script();
-    }else {
-
-        if (!file_exists(_config)) {
-            // build yaml map
-            create_yaml_map();
-            write_file(_config, _config_data);
-        }else {
-            // config file data
-            load_config();
-        }
-
-        if (!file_exists(_shell_script)) {
-            create_shell_script();
-        }
-    }
-
-    // set wallpaper info
-    QString info = _db.selectQuery(_current_wallpaper);
-
-    if (!info.isEmpty()) {
-        _wallpaper_info = info;
-        emit wallpaper_info_changed();
-    }
-
-    // create wallpaper directory
-    QDir wallpaper_dir(wallpaper_path);
-    if (!wallpaper_dir.exists()) {
-        wallpaper_dir.mkpath(wallpaper_path);
+// Reads one key from a YAML node, leaving `out` untouched when it is missing
+// or has the wrong type.
+template <typename T>
+void readKey(const YAML::Node &node, const char *key, T &out)
+{
+    try {
+        if (node[key])
+            out = node[key].as<T>();
+    } catch (const YAML::Exception &e) {
+        qWarning() << "Ignoring invalid config value" << key << e.what();
     }
 }
 
-QString BingIO::get_region() {
-    return this->_region;
+} // namespace
+
+BingIO::BingIO(QObject *parent)
+    : BingIO(QStandardPaths::writableLocation(QStandardPaths::AppLocalDataLocation),
+             QStandardPaths::writableLocation(QStandardPaths::PicturesLocation) + "/Bingwallpapers",
+             parent)
+{
 }
 
-QString BingIO::get_app_directory() {
-    return this->_app_directory;
-}
+BingIO::BingIO(const QString &appDirectory, const QString &wallpaperDirectory, QObject *parent)
+    : QObject(parent),
+      _app_directory(ensureDirectory(appDirectory)),
+      _db(_app_directory + "/bingwallpaper.db")
+{
+    _config = QDir(_app_directory).absoluteFilePath("config.yaml");
+    _wallpaper_dir = wallpaperDirectory;
 
-qint64 BingIO::get_refresh_milliseconds() {
-    return _refresh_milliseconds;
-}
+    // Earlier versions downloaded and ran a helper script; it is not used any more.
+    QFile::remove(QDir(_app_directory).filePath("bing.sh"));
+    QFile::remove(QDir(_app_directory).filePath("config.sh"));
 
+    load_config();
+    QDir().mkpath(_wallpaper_dir);
+    if (!QFileInfo::exists(_config))
+        save_config();
 
-void BingIO::set_region(QString rgn) {
-    if (this->_region != rgn) {
-        this->_region = rgn;
-        emit data_changed();
+    if (!_current_wallpaper.isEmpty())
+        applyInfo(_db.selectQuery(_current_wallpaper));
+
+    _save_timer.setSingleShot(true);
+    _save_timer.setInterval(300);
+    connect(&_save_timer, &QTimer::timeout, this, &BingIO::save_config);
+
+    _daily_timer.setSingleShot(true);
+    connect(&_daily_timer, &QTimer::timeout, this, [this] {
+        refreshWhenOnline();
+        scheduleDaily();
+    });
+    connect(&_rotate_timer, &QTimer::timeout, this, &BingIO::rotate);
+
+    if (QNetworkInformation::loadDefaultBackend()) {
+        QNetworkInformation *info = QNetworkInformation::instance();
+        auto update = [this](QNetworkInformation::Reachability r) {
+            setOnline(r != QNetworkInformation::Reachability::Disconnected
+                      && r != QNetworkInformation::Reachability::Local
+                      && r != QNetworkInformation::Reachability::Site);
+        };
+        update(info->reachability());
+        connect(info, &QNetworkInformation::reachabilityChanged, this, update);
     }
 }
 
-bool BingIO::file_exists(QString filename) {
-    return QFileInfo::exists(filename);
+BingIO::~BingIO()
+{
+    if (_save_timer.isActive())
+        save_config();
 }
 
-bool BingIO::dir_exists(QString dir) {
-    return QDir(dir).exists();
+QString BingIO::version() const
+{
+    return QStringLiteral(BINGWALLPAPERS_VERSION);
 }
 
-bool BingIO::dir_read_write(QString dir) {
-    QFileInfo my_dir(dir);
-
-    if (!my_dir.isDir())
-        return false;
-    if (my_dir.isWritable() && my_dir.isReadable())
-        return true;
-    return false;
+QUrl BingIO::wallpaperUrl() const
+{
+    const QString name = QFileInfo(_current_wallpaper).fileName();
+    if (name.isEmpty())
+        return QUrl();
+    const QString path = QDir(_wallpaper_dir).filePath(name);
+    return QFileInfo::exists(path) ? QUrl::fromLocalFile(path) : QUrl();
 }
 
-QString BingIO::get_bing_wall_directory() {
-    return _bing_wall_directory;
+// ---------------------------------------------------------------- settings
+
+void BingIO::setRegion(const QString &region)
+{
+    const QString code = normalizeRegion(region);
+    if (code.isEmpty() || _region == code)
+        return;
+    _region = code;
+    emit settingsChanged();
+    scheduleSave();
 }
 
-void BingIO::set_bing_wall_directory(QString directory) {
-    if (this->_bing_wall_directory != directory) {
-        _bing_wall_directory = directory;
-        emit data_changed();
+void BingIO::setSetBackground(bool enabled)
+{
+    if (_set_background == enabled)
+        return;
+    _set_background = enabled;
+    emit settingsChanged();
+    scheduleSave();
+}
+
+void BingIO::setSetLockScreen(bool enabled)
+{
+    if (_set_lock_screen == enabled)
+        return;
+    _set_lock_screen = enabled;
+    emit settingsChanged();
+    scheduleSave();
+}
+
+void BingIO::setUltraHd(bool enabled)
+{
+    if (_ultra_hd == enabled)
+        return;
+    _ultra_hd = enabled;
+    emit settingsChanged();
+    scheduleSave();
+}
+
+void BingIO::setRotateMinutes(int minutes)
+{
+    if (minutes < 0)
+        minutes = 0;
+    else if (minutes > 0 && minutes < MinRotateMinutes)
+        minutes = MinRotateMinutes;
+
+    const qint64 ms = qint64(minutes) * 60000;
+    if (_rotate_ms == ms)
+        return;
+    _rotate_ms = ms;
+    restartRotation();
+    emit settingsChanged();
+    scheduleSave();
+}
+
+void BingIO::setDeleteDays(int days)
+{
+    days = qMax(0, days);
+    if (_delete_days == days)
+        return;
+    _delete_days = days;
+    emit settingsChanged();
+    scheduleSave();
+}
+
+void BingIO::setWallpaperDir(const QString &dir)
+{
+    QString clean = QDir::cleanPath(dir.trimmed());
+    if (clean.isEmpty() || _wallpaper_dir == clean)
+        return;
+    _wallpaper_dir = clean;
+    emit settingsChanged();
+    emit wallpaperChanged();
+    scheduleSave();
+}
+
+int BingIO::dirState(const QString &dir) const
+{
+    const QFileInfo info(dir.trimmed());
+    if (dir.trimmed().isEmpty() || !info.isDir())
+        return DirMissing;
+    return (info.isReadable() && info.isWritable()) ? DirValid : DirDenied;
+}
+
+QString BingIO::urlToLocalPath(const QUrl &url) const
+{
+    return url.toLocalFile();
+}
+
+// ------------------------------------------------------------------ config
+
+void BingIO::load_config()
+{
+    if (!QFileInfo::exists(_config))
+        return;
+
+    try {
+        const YAML::Node config = YAML::LoadFile(_config.toStdString());
+
+        std::string text;
+        readKey(config, "REGION", text);
+        if (!text.empty())
+            _region = normalizeRegion(QString::fromStdString(text));
+
+        readKey(config, "ROTATE", _rotate_ms);
+        if (_rotate_ms < 0)
+            _rotate_ms = 0;
+
+        text.clear();
+        readKey(config, "WALLPAPER_DIR", text);
+        // Very old configs stored "0" to mean "use the default directory".
+        if (!text.empty() && text != "0")
+            _wallpaper_dir = QString::fromStdString(text);
+
+        readKey(config, "SET_BACKGROUND", _set_background);
+        readKey(config, "SET_LOCKSCREEN", _set_lock_screen);
+        readKey(config, "ULTRA_HD", _ultra_hd);
+        readKey(config, "SET_DELETE_DAYS", _delete_days);
+        readKey(config, "REFRESH_TIME", _refresh_hour_utc);
+
+        text.clear();
+        readKey(config, "CURRENT_WALLPAPER", text);
+        _current_wallpaper = QString::fromStdString(text);
+    } catch (const YAML::Exception &e) {
+        qWarning() << "Unable to read" << _config << e.what() << "- using defaults";
     }
 }
 
-int BingIO::set_combo_box_region() {
-    if (_region == "en-UK") {
-        return 1;
-    }else if (_region == "de-DE") {
-        return 2;
-    }else if (_region == "en-CA") {
-        return 3;
-    }else if (_region == "en-AU") {
-        return 4;
-    }else if (_region == "fr-FR") {
-        return 5;
-    }else if (_region == "ja-JP") {
-        return 6;
-    }else if (_region == "zh-CN") {
-        return 7;
-    }else {
-        return 0;
+void BingIO::save_config()
+{
+    _save_timer.stop();
+
+    YAML::Emitter config;
+    config << YAML::BeginMap;
+    config << YAML::Key << "REGION" << YAML::Value << _region.toStdString();
+    config << YAML::Key << "ROTATE" << YAML::Value << static_cast<long long>(_rotate_ms);
+    config << YAML::Key << "WALLPAPER_DIR" << YAML::Value << _wallpaper_dir.toStdString();
+    config << YAML::Key << "SET_BACKGROUND" << YAML::Value << _set_background;
+    config << YAML::Key << "SET_LOCKSCREEN" << YAML::Value << _set_lock_screen;
+    config << YAML::Key << "ULTRA_HD" << YAML::Value << _ultra_hd;
+    config << YAML::Key << "SET_DELETE_DAYS" << YAML::Value << _delete_days;
+    config << YAML::Key << "REFRESH_TIME" << YAML::Value << _refresh_hour_utc;
+    config << YAML::Key << "CURRENT_WALLPAPER" << YAML::Value << _current_wallpaper.toStdString();
+    config << YAML::EndMap;
+
+    QSaveFile file(_config);
+    if (!file.open(QIODevice::WriteOnly | QIODevice::Text)) {
+        qWarning() << "Unable to write" << _config << file.errorString();
+        return;
+    }
+    file.write(config.c_str());
+    file.write("\n");
+    if (!file.commit())
+        qWarning() << "Unable to save" << _config << file.errorString();
+}
+
+void BingIO::scheduleSave()
+{
+    _save_timer.start();
+}
+
+// ----------------------------------------------------------------- refresh
+
+void BingIO::setBusy(bool busy)
+{
+    if (_busy == busy)
+        return;
+    _busy = busy;
+    emit busyChanged();
+}
+
+void BingIO::setOnline(bool online)
+{
+    if (_online == online)
+        return;
+    _online = online;
+    emit onlineChanged();
+    if (_online && _pending_refresh) {
+        _pending_refresh = false;
+        refresh(false);
     }
 }
 
-QString BingIO::get_region_key(int region) {
-    if (region == 1) {
-        return "en-UK";
-    }else if (region == 2) {
-        return "de-DE";
-    }else if (region == 3) {
-        return "en-CA";
-    }else if (region == 4) {
-        return "en-AU";
-    }else if (region == 5) {
-        return "fr-FR";
-    }else if (region == 6) {
-        return "ja-JP";
-    }else if (region == 7) {
-        return "zh-CN";
-    }else if (region == 0) {
-        return "en-US";
-    }else {
-        return _region;
-    }
-}
+void BingIO::refresh(bool manual)
+{
+    if (_busy)
+        return;
 
-QString BingIO::read_file(QString filename) {
-    if (!file_exists(filename)) {
-        return "en-US";
-    }
-
-    QFile file(filename);
-
-    if (!file.open(QFile::ReadOnly | QFile::Text)) {
-        qDebug("Unable to open file");
-    }
-
-    QTextStream in(&file);
-    QString text = in.readAll();
-    file.close();
-    return text;
-}
-
-void BingIO::write_file(QString filename, QString text) {
-
-    QFile file(filename);
-    if (!file.open(QIODevice::ReadWrite | QIODevice::Truncate | QIODevice::Text)) {
-        qDebug("Unable to open file");
-    }
-
-    QTextStream out(&file);
-    out << text;
-    file.flush();
-    file.close();
-
-}
-
-// rotate
-
-void BingIO::set_rotate(ulong rotate) {
-    if (_rotate != rotate) {
-        _rotate = rotate;
-        emit data_changed();
-    }
-}
-
-ulong BingIO::get_rotate() {
-    return _rotate;
-}
-
-
-bool BingIO::get_background_image() {
-    return _set_background_image;
-}
-
-bool BingIO::get_lock_screen() {
-    return _set_lock_screen;
-}
-
-QString BingIO::get_wallpaper_info() {
-    return _wallpaper_info;
-}
-
-void BingIO::set_wallpaper_info() {
-    // set wallpaper info
-    QString info = _db.selectQuery(_current_wallpaper);
-
-    if (!info.isEmpty()) {
-        _wallpaper_info = info;
-        emit wallpaper_info_changed();
+    if (manual && !_online) {
+        _pending_refresh = true;
+        emit refreshFinished(false, tr("No internet connection – retrying"));
         return;
     }
 
-    QString xmlText = launch("curl -s http://www.bing.com/HPImageArchive.aspx?format=xml&idx=0&n=1&mkt=" + _region);
+    _pending_refresh = false;
+    setBusy(true);
+    fetchToday();
+}
 
-    if (!xmlText.isEmpty()) {
-        QDomDocument doc;
-        doc.setContent(xmlText);
-        QDomNodeList list = doc.elementsByTagName("copyright");
-        QDomNodeList urlBase = doc.elementsByTagName("url");
-        QString image_name = urlBase.at(0).toElement().text();
-        QString wall_info = list.at(0).toElement().text();
-        QString current_image = _current_wallpaper;
-        current_image.replace(QString("1920x1200.jpg"), "");
+void BingIO::refreshWhenOnline()
+{
+    if (_online)
+        refresh(false);
+    else
+        _pending_refresh = true;
+}
 
-        if (image_name.contains(current_image, Qt::CaseInsensitive)) {
-            if (!wall_info.isEmpty()) {
-                _wallpaper_info = wall_info;
-                emit wallpaper_info_changed();
-                _db.insertQuery(_current_wallpaper, _wallpaper_info);
-            }
-        } else {
-            _wallpaper_info = "NO CONTENT";
-            emit wallpaper_info_changed();
+void BingIO::rotate()
+{
+    if (_busy)
+        return;
+
+    setBusy(true);
+    const QString name = pickRandomSaved();
+    if (name.isEmpty()) {
+        finish(false, tr("There are no saved wallpapers to rotate through"));
+        return;
+    }
+    useWallpaper(name, QString(), tr("Wallpaper changed"));
+}
+
+QStringList BingIO::savedImages() const
+{
+    return QDir(_wallpaper_dir).entryList(kImageFilters, QDir::Files, QDir::Name);
+}
+
+// Picks a saved picture other than the one in use, when there is a choice.
+QString BingIO::pickRandomSaved() const
+{
+    QStringList images = savedImages();
+    if (images.size() > 1)
+        images.removeAll(QFileInfo(_current_wallpaper).fileName());
+    if (images.isEmpty())
+        return QString();
+    return images.at(int(QRandomGenerator::global()->bounded(images.size())));
+}
+
+void BingIO::fetchToday()
+{
+    QUrl url = _base_url.resolved(QUrl("/HPImageArchive.aspx"));
+    QUrlQuery query;
+    query.addQueryItem("format", "xml");
+    query.addQueryItem("idx", "0");
+    query.addQueryItem("n", "1");
+    query.addQueryItem("mkt", _region);
+    url.setQuery(query);
+
+    QNetworkRequest request(url);
+    request.setTransferTimeout(kFeedTimeoutMs);
+    QNetworkReply *reply = _net.get(request);
+
+    connect(reply, &QNetworkReply::finished, this, [this, reply] {
+        reply->deleteLater();
+        if (reply->error() != QNetworkReply::NoError) {
+            qWarning() << "Unable to read Bing's feed:" << reply->errorString();
+            onFeed({}, false);
+            return;
+        }
+        const BingFeedEntry entry = BingFeedEntry::parse(reply->readAll());
+        onFeed(entry, entry.isValid());
+    });
+}
+
+void BingIO::onFeed(const BingFeedEntry &entry, bool ok)
+{
+    // Offline, or Bing unreachable: a saved picture is better than nothing.
+    if (!ok) {
+        const QString name = pickRandomSaved();
+        if (name.isEmpty())
+            finish(false, tr("Couldn't reach Bing"));
+        else
+            useWallpaper(name, QString(), tr("Offline – applied a saved wallpaper"));
+        return;
+    }
+
+    const auto candidates = entry.candidates(_base_url, _ultra_hd);
+    if (candidates.isEmpty()) {
+        finish(false, tr("Bing sent a picture that can't be saved"));
+        return;
+    }
+
+    // Which version of today's picture is already saved, best first? Index 0
+    // is what the settings ask for; a later one is a lower quality copy, e.g.
+    // Full HD saved before 4K was switched on.
+    const QDir dir(_wallpaper_dir);
+    int existingIndex = -1;
+    for (int i = 0; i < candidates.size(); ++i) {
+        if (dir.exists(candidates.at(i).name)) {
+            existingIndex = i;
+            break;
         }
     }
-}
 
-void BingIO::set_background_image(bool image) {
-    if (image != _set_background_image) {
-        _set_background_image = image;
-        emit data_changed();
+    auto useExisting = [this, entry, candidates](int index) {
+        const QString random = _rotate_ms > 0 ? pickRandomSaved() : QString();
+        if (random.isEmpty())
+            useWallpaper(candidates.at(index).name, entry.copyright, tr("Wallpaper is up to date"));
+        else
+            useWallpaper(random, QString(), tr("Wallpaper changed"));
+    };
+
+    if (existingIndex == 0) {
+        useExisting(0);
+        return;
     }
+
+    // Nothing saved, or only a lower quality copy: try the better versions only.
+    const int better = existingIndex < 0 ? int(candidates.size()) : existingIndex;
+    QDir().mkpath(_wallpaper_dir);
+    downloadFirst(candidates.mid(0, better), 0, [=](const QString &name) {
+        if (name.isEmpty()) {
+            if (existingIndex >= 0)
+                useExisting(existingIndex);      // the better version isn't available; keep what we have
+            else
+                finish(false, tr("Couldn't download today's wallpaper"));
+            return;
+        }
+
+        // Keep one copy of the picture: remove the other sizes this app saved.
+        for (const auto &other : entry.candidates(_base_url, true)) {
+            if (other.name != name)
+                QFile::remove(dir.filePath(other.name));
+        }
+        useWallpaper(name, entry.copyright, tr("Wallpaper updated"));
+    });
 }
 
-void BingIO::set_lock_screen(bool image) {
-    if (image != _set_lock_screen) {
-        _set_lock_screen = image;
-        emit data_changed();
-    }
-}
-
-void BingIO::set_days_to_delete_pic(ulong days) {
-    if (_delete_days != days) {
-        _delete_days = days;
-        emit data_changed();
-    }
-}
-
-ulong BingIO::get_days_to_delete_pic(){
-    return _delete_days;
-}
-
-QString BingIO::get_next_refresh() {
-    return _next_refresh;
-}
-
-void BingIO::save_data() {
-    // build yaml map
-    create_yaml_map();
-    write_file(_config, _config_data);
-}
-
-void BingIO::create_yaml_map() {
-    YAML::Emitter config;
-    config << YAML::BeginMap;
-    config << YAML::Key << "REGION";
-    config << YAML::Value << _region.toStdString();
-    config << YAML::Key << "ROTATE";
-    config << YAML::Value << _rotate;
-    config << YAML::Key << "WALLPAPER_DIR";
-    config << YAML::Value << _bing_wall_directory.toStdString();
-    config << YAML::Key << "SET_BACKGROUND";
-    config << YAML::Value << _set_background_image;
-    config << YAML::Key << "SET_LOCKSCREEN";
-    config << YAML::Value << _set_lock_screen;
-    config << YAML::Key << "SET_DELETE_DAYS";
-    config << YAML::Value << _delete_days;
-    config << YAML::Key << "REFRESH_TIME";
-    config << YAML::Value << _refresh_minutes;
-    config << YAML::Key << "CURRENT_WALLPAPER";
-    config << YAML::Value << _current_wallpaper.toStdString();
-    config << YAML::Key << "DOWNLOAD_SCRIPT";
-    config << YAML::Value << _download_script;
-    config << YAML::EndMap;
-
-    _config_data = QString::fromStdString(config.c_str());
-}
-
-void BingIO::load_config() {
-    if (file_exists(_config)) {
-        YAML::Node config = YAML::LoadFile(_config.toStdString());
-        if (config["REGION"])
-            _region = QString::fromStdString(config["REGION"].as<std::string>());
-        if (config["ROTATE"])
-            _rotate = config["ROTATE"].as<int>();
-        if (config["WALLPAPER_DIR"])
-            _bing_wall_directory = QString::fromStdString(config["WALLPAPER_DIR"].as<std::string>());
-        if (config["SET_BACKGROUND"])
-            _set_background_image = config["SET_BACKGROUND"].as<std::string>() == "true" ? true : false;
-        if (config["SET_LOCKSCREEN"])
-            _set_lock_screen = config["SET_LOCKSCREEN"].as<std::string>() == "true" ? true : false;
-        if (config["SET_DELETE_DAYS"])
-            _delete_days = config["SET_DELETE_DAYS"].as<int>();
-        if (config["REFRESH_TIME"])
-            _refresh_milliseconds = create_refresh_milliseconds(config["REFRESH_TIME"].as<int>());
-        if (config["CURRENT_WALLPAPER"])
-            _current_wallpaper = QString::fromStdString(config["CURRENT_WALLPAPER"].as<std::string>());
-        if (config["DOWNLOAD_SCRIPT"])
-            _download_script = config["DOWNLOAD_SCRIPT"].as<int>();
-    }
-}
-
-qint64 BingIO::create_refresh_milliseconds(int time) {
-    QDateTime utc = QDateTime::currentDateTimeUtc();
-    QDateTime current_time = QDateTime::currentDateTimeUtc();
-
-    utc.setTime(QTime(time, 0, 0)); // set time to the prefered time
-
-    qint64 millisec = utc.time().msecsSinceStartOfDay() - current_time.time().msecsSinceStartOfDay();
-    if (millisec < 0) {
-        utc = utc.addDays(1);
-        millisec = current_time.time().msecsSinceStartOfDay() - utc.time().msecsSinceStartOfDay();
-    }
-    _refresh_minutes = time;
-    _next_refresh = utc.toString("hh:mm AP dd.MM.yyyy t");
-    emit refresh_date_changed();
-    return millisec;
-}
-
-void BingIO::update_next_refresh_date() {
-    _refresh_milliseconds = create_refresh_milliseconds(_refresh_minutes);
-}
-
-QString BingIO::launch(const QString &program)
+// Tries each version in turn and reports the file name of the first that
+// downloads, or an empty name when none does. Bing answers 404 (or a redirect)
+// for sizes it doesn't have, so redirects are only followed for Bing's own
+// default picture.
+void BingIO::downloadFirst(const QList<BingFeedEntry::Candidate> &candidates, int index,
+                           const std::function<void(const QString &)> &done)
 {
-    m_process->start(program);
-    m_process->waitForFinished(-1);
-    QByteArray bytes = m_process->readAllStandardOutput();
-    QString output = QString::fromLocal8Bit(bytes);
-    return output;
-}
-
-QString BingIO::run_script() {
-    if (!file_exists(_shell_script)) {
-        create_shell_script();
-    } else if (_force_download - _download_script > 0) {
-        create_shell_script();
-        _download_script = _force_download;
-        save_data();
+    if (index >= candidates.size()) {
+        done(QString());
+        return;
     }
-    QString wallpaper = launch(_shell_script);
-    wallpaper.remove(QRegExp("[\"\n]"));
-    if (!wallpaper.isEmpty()) {
-        _current_wallpaper = wallpaper;
 
-        // get wallpaper info
-        set_wallpaper_info();
-        save_data();
+    const auto candidate = candidates.at(index);
+    download(candidate.url, candidate.name, candidate.isDefault, [=](bool ok) {
+        if (ok)
+            done(candidate.name);
+        else
+            downloadFirst(candidates, index + 1, done);
+    });
+}
+
+void BingIO::download(const QUrl &url, const QString &name, bool followRedirects,
+                      const std::function<void(bool)> &done)
+{
+    if (!url.isValid() || name.isEmpty()) {
+        done(false);
+        return;
     }
-    return wallpaper;
+
+    QNetworkRequest request(url);
+    request.setTransferTimeout(kDownloadTimeoutMs);
+    request.setAttribute(QNetworkRequest::RedirectPolicyAttribute,
+                         followRedirects ? QNetworkRequest::NoLessSafeRedirectPolicy
+                                         : QNetworkRequest::ManualRedirectPolicy);
+    QNetworkReply *reply = _net.get(request);
+
+    connect(reply, &QNetworkReply::finished, this, [this, reply, name, done] {
+        reply->deleteLater();
+        const int status = reply->attribute(QNetworkRequest::HttpStatusCodeAttribute).toInt();
+        const QByteArray body = reply->readAll();
+
+        bool ok = reply->error() == QNetworkReply::NoError && status == 200 && looksLikeImage(body);
+        if (ok) {
+            QSaveFile file(QDir(_wallpaper_dir).filePath(name));
+            ok = file.open(QIODevice::WriteOnly) && file.write(body) == body.size() && file.commit();
+            if (!ok)
+                qWarning() << "Unable to save" << name << file.errorString();
+        }
+        done(ok);
+    });
 }
 
-void BingIO::delete_wallpaper() {
-    // delete the current wallpaper
-    launch("rm -rf " + _bing_wall_directory + "/" + _current_wallpaper);
-    _current_wallpaper = "";
-    save_data();
+// Makes `name` (a file in the wallpaper directory) the current wallpaper.
+void BingIO::useWallpaper(const QString &name, const QString &copyright, const QString &message)
+{
+    _current_wallpaper = name;
+    if (!copyright.isEmpty())
+        _db.insertQuery(name, copyright);
+    applyInfo(_db.selectQuery(name));
+
+    applyToDesktop(QDir(_wallpaper_dir).filePath(name), [this, message](bool ok, const QString &error) {
+        if (_delete_days > 0)
+            cleanDir(_delete_days);
+        finish(ok, ok ? message : error);
+    });
 }
 
-void BingIO::rotateCmd(ulong millisec) {
-    // set rotate from cmd
-    set_rotate(millisec);
-    save_data();
-    run_script();
-    if (millisec <= 1000) {
-        set_rotate(0);
-        save_data();
+void BingIO::applyToDesktop(const QString &path, const std::function<void(bool, const QString &)> &done)
+{
+    if (!_set_background && !_set_lock_screen) {
+        done(true, QString());
+        return;
     }
+
+    const auto desktop = WallpaperSetter::detectDesktop(qEnvironmentVariable("XDG_CURRENT_DESKTOP"));
+    const auto commands = WallpaperSetter::commands(desktop, path, _set_background, _set_lock_screen);
+    if (commands.isEmpty()) {
+        done(false, tr("Wallpaper saved, but this desktop can't be set automatically"));
+        return;
+    }
+    runCommands(commands, 0, done);
 }
 
-bool BingIO::check_network_connection() {
-    bool connection = _network_manager.isOnline();
-    return connection;
+void BingIO::runCommands(const QList<WallpaperSetter::Command> &commands, int index,
+                         const std::function<void(bool, const QString &)> &done)
+{
+    if (index >= commands.size()) {
+        done(true, QString());
+        return;
+    }
+
+    const WallpaperSetter::Command command = commands.at(index);
+    auto *process = new QProcess(this);
+
+    // The same defaults bing.sh used, so it also works from cron or autostart.
+    QProcessEnvironment env = QProcessEnvironment::systemEnvironment();
+    if (!env.contains("DISPLAY") && !env.contains("WAYLAND_DISPLAY"))
+        env.insert("DISPLAY", ":0");
+    if (!env.contains("GSETTINGS_BACKEND"))
+        env.insert("GSETTINGS_BACKEND", "dconf");
+    process->setProcessEnvironment(env);
+
+    auto next = [=](bool ok) {
+        if (ok || command.optional)
+            runCommands(commands, index + 1, done);
+        else
+            done(false, tr("Couldn't set the wallpaper (%1 failed)").arg(command.program));
+    };
+
+    connect(process, &QProcess::errorOccurred, this, [process, next](QProcess::ProcessError error) {
+        if (error != QProcess::FailedToStart)
+            return;
+        process->deleteLater();
+        next(false);
+    });
+    connect(process, &QProcess::finished, this, [process, next](int code, QProcess::ExitStatus status) {
+        process->deleteLater();
+        next(status == QProcess::NormalExit && code == 0);
+    });
+    QTimer::singleShot(kCommandTimeoutMs, process, [process] {
+        if (process->state() != QProcess::NotRunning)
+            process->kill();
+    });
+
+    process->start(command.program, command.args);
 }
 
-void BingIO::clean_dir(QString days) {
-    QString cmd = "find "+ _bing_wall_directory + " -type f -mtime +" + days + " -exec rm {} \;";
-    launch(cmd);
+// Bing describes a picture as "Title (© Author)".
+void BingIO::applyInfo(const QString &info)
+{
+    static const QRegularExpression pattern("^(.*?)\\s*\\(©\\s*(.*?)\\)\\s*$");
+    const QRegularExpressionMatch match = pattern.match(info);
+
+    if (match.hasMatch()) {
+        _wallpaper_title = match.captured(1);
+        _wallpaper_copyright = "© " + match.captured(2);
+    } else {
+        _wallpaper_title = info;
+        _wallpaper_copyright.clear();
+    }
+    emit wallpaperChanged();
 }
 
-void BingIO::create_shell_script() {
-    launch("curl https://raw.githubusercontent.com/julekgwa/bingwallpaper/script-only/bing.sh --output " + _shell_script);
-    launch("chmod +x " + _shell_script);
+void BingIO::finish(bool ok, const QString &message)
+{
+    save_config();
+    setBusy(false);
+    emit refreshFinished(ok, message);
 }
 
-const QString BingIO::version = "2020-03-08";
+// -------------------------------------------------------------- scheduling
+
+void BingIO::startScheduling()
+{
+    _scheduling = true;
+    scheduleDaily();
+    restartRotation();
+    QTimer::singleShot(kStartupDelayMs, this, &BingIO::refreshWhenOnline);
+}
+
+void BingIO::restartRotation()
+{
+    _rotate_timer.stop();
+    if (_scheduling && _rotate_ms > 0)
+        _rotate_timer.start(int(qMin<qint64>(_rotate_ms, std::numeric_limits<int>::max())));
+}
+
+QDateTime BingIO::nextRefreshTime(const QDateTime &now, int hour_utc)
+{
+    QDateTime next(now.date(), QTime(hour_utc, 0), QTimeZone::UTC);
+    if (next <= now)
+        next = next.addDays(1);
+    return next;
+}
+
+void BingIO::scheduleDaily()
+{
+    const QDateTime now = QDateTime::currentDateTimeUtc();
+    const QDateTime next = nextRefreshTime(now, _refresh_hour_utc);
+
+    _daily_timer.start(int(now.msecsTo(next)));
+    _next_refresh = describeNextRefresh(next);
+    emit nextRefreshChanged();
+}
+
+QString BingIO::describeNextRefresh(const QDateTime &when) const
+{
+    const QDateTime local = when.toLocalTime();
+    const QString time = QLocale().toString(local.time(), QLocale::ShortFormat);
+    const qint64 days = QDate::currentDate().daysTo(local.date());
+
+    if (days <= 0)
+        return tr("%1 today").arg(time);
+    if (days == 1)
+        return tr("%1 tomorrow").arg(time);
+    return tr("%1 on %2").arg(time, QLocale().toString(local.date(), QLocale::ShortFormat));
+}
+
+// ---------------------------------------------------------- command line
+
+bool BingIO::runBlocking(const std::function<void()> &start)
+{
+    bool done = false;
+    bool result = false;
+    QEventLoop loop;
+
+    const QMetaObject::Connection connection =
+            connect(this, &BingIO::refreshFinished, &loop, [&](bool ok, const QString &message) {
+        qInfo().noquote() << message;
+        result = ok;
+        done = true;
+        loop.quit();
+    });
+
+    start();
+    if (!done)
+        loop.exec();
+    disconnect(connection);
+    return result;
+}
+
+bool BingIO::refreshBlocking()
+{
+    return runBlocking([this] { refresh(false); });
+}
+
+bool BingIO::rotateOnce()
+{
+    return runBlocking([this] { rotate(); });
+}
+
+bool BingIO::deleteCurrentWallpaper()
+{
+    const QString name = QFileInfo(_current_wallpaper).fileName();
+    if (name.isEmpty())
+        return false;
+
+    const bool ok = QFile::remove(QDir(_wallpaper_dir).filePath(name));
+    _current_wallpaper.clear();
+    save_config();
+    emit wallpaperChanged();
+    return ok;
+}
+
+// Removes pictures older than `days`. Only image files directly in the
+// wallpaper directory are touched, and never the one currently in use.
+int BingIO::cleanDir(int days)
+{
+    const QDateTime cutoff = QDateTime::currentDateTime().addDays(-days);
+    const QString current = QFileInfo(_current_wallpaper).fileName();
+    int removed = 0;
+
+    const QDir dir(_wallpaper_dir);
+    const QFileInfoList files = dir.entryInfoList(kImageFilters, QDir::Files);
+    for (const QFileInfo &file : files) {
+        if (file.fileName() != current && file.lastModified() < cutoff && QFile::remove(file.absoluteFilePath()))
+            ++removed;
+    }
+    return removed;
+}
