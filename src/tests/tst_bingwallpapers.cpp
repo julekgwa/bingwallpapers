@@ -623,6 +623,39 @@ private slots:
         QCOMPARE(io.wallpaperCopyright(), QString::fromUtf8("\xC2\xA9 Old Author"));
     }
 
+    // The VM case: a database from an older build already holds this picture's
+    // description under its Full HD name, then 4K is switched on.
+    void titleSurvivesUpgradeWithAnOldDatabase()
+    {
+        QDir().mkpath(appDir);
+        {
+            QSqlDatabase old = QSqlDatabase::addDatabase("QSQLITE", "legacy2");
+            old.setDatabaseName(appDir + "/bingwallpaper.db");
+            QVERIFY(old.open());
+            QSqlQuery q(old);
+            QVERIFY(q.exec("CREATE TABLE bingwallpapers(id INTEGER PRIMARY KEY AUTOINCREMENT, image_name TEXT NOT NULL, "
+                           "description TEXT NOT NULL, CONSTRAINT description_unique UNIQUE (description), "
+                           "CONSTRAINT image_name_unique UNIQUE (image_name))"));
+            QVERIFY(q.exec(QString::fromUtf8("INSERT INTO bingwallpapers (image_name, description) "
+                                             "VALUES ('Test_EN-US1_1920x1200.jpg', 'Test title (\xC2\xA9 Test Author)')")));
+            old.close();
+        }
+        QSqlDatabase::removeDatabase("legacy2");
+
+        FakeBing bing;
+        bing.route("/HPImageArchive.aspx", 200, kFeed);
+        bing.route(kUhdPath, 200, kJpeg);
+
+        BingIO io(appDir, picturesDir, nullptr);                        // 4K is on by default
+        touch(io.wallpaperDir() + "/Test_EN-US1_1920x1200.jpg", kJpeg);
+        const QVariantList result = refreshOnce(io, bing);
+
+        QCOMPARE(result.value(0).toBool(), true);
+        QCOMPARE(io._current_wallpaper, QString("Test_EN-US1_UHD.jpg"));
+        QCOMPARE(io.wallpaperTitle(), QString("Test title"));
+        QCOMPARE(io.wallpaperCopyright(), QString::fromUtf8("\xC2\xA9 Test Author"));
+    }
+
     void refreshKeepsFullHdWhenUltraHdIsNotAvailable()
     {
         FakeBing bing;

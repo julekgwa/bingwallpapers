@@ -515,9 +515,14 @@ void BingIO::download(const QUrl &url, const QString &name, bool followRedirects
 void BingIO::useWallpaper(const QString &name, const QString &copyright, const QString &message)
 {
     _current_wallpaper = name;
-    if (!copyright.isEmpty())
+    // Bing's own text is used directly; the database is only a cache for
+    // pictures that are applied later without asking Bing (rotation, restart).
+    if (!copyright.isEmpty()) {
         _db.insertQuery(name, copyright);
-    applyInfo(_db.selectQuery(name));
+        applyInfo(copyright);
+    } else {
+        applyInfo(_db.selectQuery(name));
+    }
 
     applyToDesktop(QDir(_wallpaper_dir).filePath(name), [this, message](bool ok, const QString &error) {
         if (_delete_days > 0)
