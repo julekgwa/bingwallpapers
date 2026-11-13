@@ -8,6 +8,5 @@ Icon=/usr/share/bingwallpapers/bingwallpapers.png
 Type=Application
 Terminal=false
 StartupNotify=false
-Encoding=UTF-8
 Categories=Utility;
 Name[en_ZA]=Bingwallpapers

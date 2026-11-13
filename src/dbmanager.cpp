@@ -1,58 +1,68 @@
 #include "dbmanager.h"
 
-DbManager::DbManager()
-{
+static const QString kConnectionName = "bingdb";
 
-    dbConnect();
+DbManager::DbManager(const QString &path)
+{
+    dbConnect(path);
     dbInit();
 }
 
-void DbManager::dbConnect() {
+DbManager::~DbManager()
+{
+    if (_db.isOpen())
+        _db.close();
+    _db = QSqlDatabase();
+    QSqlDatabase::removeDatabase(kConnectionName);
+}
+
+void DbManager::dbConnect(const QString &path) {
     const QString DRIVER("QSQLITE");
 
-    if (QSqlDatabase::isDriverAvailable(DRIVER)) {
-        QSqlDatabase db = QSqlDatabase::addDatabase(DRIVER, "bingdb");
-        db.setDatabaseName("bingwallpaper.db");
-        if (db.open()) {
-            _connected = true;
-            _db = QSqlDatabase::database("bingdb");
-        }
+    if (!QSqlDatabase::isDriverAvailable(DRIVER)) {
+        qWarning("SQLite driver is not available");
+        return;
     }
+
+    _db = QSqlDatabase::addDatabase(DRIVER, kConnectionName);
+    _db.setDatabaseName(path);
+    _connected = _db.open();
+    if (!_connected)
+        qWarning() << "Unable to open database" << path << _db.lastError().text();
 }
 
 void DbManager::dbInit() {
-    if (_connected) {
-        QSqlQuery create_tb(_db);
+    if (!_connected)
+        return;
 
-        create_tb.prepare(_create_table);
-        create_tb.exec();
-    }
+    QSqlQuery query(_db);
+    query.exec(_create_table);
+
+    // Carry over what older versions stored; the old table is left in place.
+    if (query.exec("SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = 'bingwallpapers'") && query.first())
+        query.exec("INSERT OR IGNORE INTO wallpaper_info (image_name, description) "
+                   "SELECT image_name, description FROM bingwallpapers");
 }
 
-bool DbManager::insertQuery(QString image_name, QString description) {
-    if (_connected) {
-        QSqlQuery insert(_db);
+bool DbManager::insertQuery(const QString &image_name, const QString &description) {
+    if (!_connected)
+        return false;
 
-        insert.prepare("INSERT INTO bingwallpapers (image_name, description) VALUES(:image_name, :description)");
-        insert.bindValue(":image_name", image_name);
-        insert.bindValue(":description", description);
-        if (insert.exec()) {
-            return true;
-        }
-    }
-    return false;
+    QSqlQuery insert(_db);
+    insert.prepare("INSERT OR REPLACE INTO wallpaper_info (image_name, description) VALUES(:image_name, :description)");
+    insert.bindValue(":image_name", image_name);
+    insert.bindValue(":description", description);
+    return insert.exec();
 }
 
-QString DbManager::selectQuery(QString image_name) {
-    if (_connected) {
-       QSqlQuery select(_db);
+QString DbManager::selectQuery(const QString &image_name) {
+    if (!_connected)
+        return QString();
 
-       select.prepare("SELECT description FROM bingwallpapers WHERE image_name = :image_name");
-       select.bindValue(":image_name", image_name);
-       select.exec();
-       if (select.first()) {
-           return select.value(0).toString();
-       }
-    }
-    return "";
+    QSqlQuery select(_db);
+    select.prepare("SELECT description FROM wallpaper_info WHERE image_name = :image_name");
+    select.bindValue(":image_name", image_name);
+    if (select.exec() && select.first())
+        return select.value(0).toString();
+    return QString();
 }

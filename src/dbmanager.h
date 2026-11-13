@@ -2,22 +2,25 @@
 #define DBMANAGER_H
 
 #include <QSqlDatabase>
-#include <QSqlDriver>
 #include <QSqlError>
 #include <QSqlQuery>
-#include <QDebug>
+#include <QString>
 
 class DbManager
 {
 public:
-    DbManager();
-    bool insertQuery(QString image_name, QString description);
-    QString selectQuery(QString image_name);
+    explicit DbManager(const QString &path);
+    ~DbManager();
+    bool insertQuery(const QString &image_name, const QString &description);
+    QString selectQuery(const QString &image_name);
 private:
-    void dbConnect();
+    void dbConnect(const QString &path);
     void dbInit();
     bool _connected = false;
-    QString _create_table = "CREATE TABLE IF NOT EXISTS bingwallpapers(id INTEGER PRIMARY KEY AUTOINCREMENT, image_name TEXT NOT NULL, description TEXT NOT NULL, CONSTRAINT description_unique UNIQUE (description), CONSTRAINT image_name_unique UNIQUE (image_name))";
+    // One row per picture file. (The first version of this table also made the
+    // description unique, so saving the same picture under a second file name,
+    // e.g. a different size, was silently rejected and its title was lost.)
+    QString _create_table = "CREATE TABLE IF NOT EXISTS wallpaper_info(image_name TEXT PRIMARY KEY, description TEXT NOT NULL)";
     QSqlDatabase _db;
 };
 
